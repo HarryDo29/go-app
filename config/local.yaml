@@ -1,0 +1,49 @@
+server:
+  port: 8080
+  mode: "dev"
+mongo:
+  uri: "mongodb://user:123456@localhost:27017/go-app"
+  user: user
+  password: 123456
+  host: localhost
+  port: 27017
+  dbName: go-app
+mysql:
+  host: 127.0.0.1
+  port: 3306
+  username: root
+  password: password
+  database: go-app
+  maxIdleConns: 10 # Max number of idle connections in the pool
+  maxOpenConns: 100 # Max number of open connections in the pool
+  connMaxLifetime: 3600 # Max lifetime of a connection
+redis:
+  host: 127.0.0.1
+  port: 6379
+  password: password
+  db: 0
+  pool: 10 # Max number of connections in the pool
+security:
+  jwt:
+    access-secret: access-my-secret-key
+    access-expiration: 15m
+    refresh-secret: refresh-my-secret-key
+    refresh-expiration: 720h # 30 ngày (time.ParseDuration không hỗ trợ "d")
+    reset-password-secret: reset-password-my-secret-key
+    reset-password-expiration: 1m
+log:
+  level: debug
+  filename: "./log/dev/log.txt"
+  max_size: 10 #mb
+  max_backups: 3 #number of old log files to keep
+  max_age: 28 #day
+  compress: true #zip old log files
+minio:
+  endpoint: localhost:9000
+  accessKey: root
+  secretKey: password
+  useSSL: false
+ratelimit:
+  limit: 5 # cho phép tối đa 5 request
+  interval: "10s" # trong vòng 10s
+  burst: 100 # trong 10s có thể cho phép 100 request
