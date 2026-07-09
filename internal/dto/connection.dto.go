@@ -1,10 +1,12 @@
 package dto
 
-import "time"
+import (
+	"time"
+)
 
 type ConnectionDto struct {
 	RequesterId string `json:"request_id"`
-	ReceiverId string `json:"receive_id"`
+	ReceiverId  string `json:"receive_id"`
 }
 
 type Participants struct {
@@ -12,12 +14,14 @@ type Participants struct {
 }
 
 type ConnectionResponseDto struct {
-	ConnectionId string     `json:"connection_id"`
-	RequesterId string     `json:"requester_id"`
-	ReceiverId string     `json:"receiver_id"`
-	ParticipantIDs [2]string  `json:"participant_ids"`
-	Status         string     `json:"status"`
-	AcceptedAt     *time.Time `json:"accepted_at,omitempty"`
+	ConnectionId   string           `json:"connection_id"`
+	RequesterId    string           `json:"requester_id"`
+	ReceiverId     string           `json:"receiver_id"`
+	ParticipantIDs [2]string        `json:"participant_ids"`
+	Status         string           `json:"status"`
+	AcceptedAt     *time.Time       `json:"accepted_at,omitempty"`
+	Requester      *UserResponseDto `json:"requester,omitempty"`
+	Receiver       *UserResponseDto `json:"receiver,omitempty"`
 }
 
 type CreateConnectionResponseDto struct {
@@ -25,4 +29,6 @@ type CreateConnectionResponseDto struct {
 	Channel    *ChannelResponseDto         `json:"channel"`
 	Members    *[]ChannelMemberResponseDto `json:"members"`
 	Unreads    bool                        `json:"unreads"`
+	Requester  *UserResponseDto            `json:"-"`
+	Receiver   *UserResponseDto            `json:"-"`
 }

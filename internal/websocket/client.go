@@ -7,11 +7,11 @@ import (
 )
 
 type Client struct {
-	UserId string
+	UserId       string
 	ConnectionId string
 	Conn         *websocket.Conn
 	Hub          *Hub
-	Send         chan MessagePayload
+	Send         chan WsResponse
 }
 
 // lắng nghe dữ liệu từ Client --> Server
@@ -24,33 +24,16 @@ func (c *Client) ReadPump() {
 	for {
 		var payload ClientMessagePayload
 
-		err := c.Conn.ReadJSON(&payload)
+		err := c.Conn.ReadJSON(&payload) // đọc message từ client
 		if err != nil {
 			log.Println("websocket read error:", err)
 			break
 		}
 
-		// xử lý message từ client
 		switch payload.Event {
 		case "UNREGISTER":
 			c.Hub.Unregister(c)
-
-		case "JOIN_CHANNEL":
-			c.Hub.JoinChannel(payload.ChannelId, c.UserId)
-
-		case "LEAVE_CHANNEL":
-			c.Hub.LeaveChannel(payload.ChannelId, c.UserId)
-
-		// case "SEND_MESSAGE":
-		// 	message := MessagePayload{
-		// 		ChannelId: payload.ChannelId,
-		// 		SenderId:  c.UserID,
-		// 		Content:   payload.Content,
-		// 		Type:      payload.Type,
-		// 	}
-		// 	c.Hub.Broadcast(message)
 		}
-
 	}
 }
 
@@ -58,8 +41,8 @@ func (c *Client) ReadPump() {
 func (c *Client) WritePump() {
 	defer c.Conn.Close()
 
-	for message := range c.Send {
-		err := c.Conn.WriteJSON(message)
+	for res := range c.Send {
+		err := c.Conn.WriteJSON(res)
 		if err != nil {
 			log.Println("websocket write error:", err)
 			break

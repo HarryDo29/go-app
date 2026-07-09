@@ -14,10 +14,17 @@ type UpdateChannelDto struct {
 }
 
 type ChannelResponseDto struct {
-	ChannelId string              `json:"channel_id"`
+	ChannelId   string              `json:"channel_id"`
 	ChannelType string              `json:"channel_type"`
 	ChannelKey  string              `json:"channel_key"`
 	Subject     *UserResponseDto    `json:"subject"`
 	Group       *GroupResponseDto   `json:"group"`
 	LastMsg     *MessageResponseDto `json:"last_msg"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+}
+
+type ChannelQueryDto struct {
+	ChannelType string
+	UpdatedAt   time.Time
+	Limit       int
 }

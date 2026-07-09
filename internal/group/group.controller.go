@@ -2,21 +2,19 @@ package group
 
 import (
 	dto "go-app/internal/dto"
+	"go-app/internal/websocket"
 	"go-app/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
 
-type GroupController struct {
-	groupService IGroupService
+type IWsHub interface {
+	Notify(userId string, event string, payload interface{}) bool
 }
 
-func NewGroupController(
-	groupService IGroupService,
-) *GroupController {
-	return &GroupController{
-		groupService: groupService,
-	}
+type GroupController struct {
+	groupService IGroupService
+	hub          IWsHub
 }
 
 func (gc *GroupController) CreateNewGroup(c *gin.Context) {
@@ -32,6 +30,9 @@ func (gc *GroupController) CreateNewGroup(c *gin.Context) {
 		response.ErrorResponse(c, response.ErrCodeCreateFailed)
 		return
 	}
+
+	// response channel realtime
+	gc.hub.Notify(groupDto.OwnerId, websocket.EventNewChannel, result)
 	response.SuccessResponse(c, response.ErrCodeSuccess, result)
 }
 
@@ -61,4 +62,14 @@ func (gc *GroupController) DeleteGroup(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, gin.H{
 		"message": "Delete group success",
 	})
+}
+
+func NewGroupController(
+	groupService IGroupService,
+	hub IWsHub,
+) *GroupController {
+	return &GroupController{
+		groupService: groupService,
+		hub:          hub,
+	}
 }

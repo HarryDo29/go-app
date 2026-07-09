@@ -1,7 +1,6 @@
 package conection
 
 import (
-	"fmt"
 	"go-app/internal/channel"
 	dto "go-app/internal/dto"
 	"go-app/internal/schema"
@@ -21,8 +20,9 @@ type IChannelService interface {
 type IConnectionService interface {
 	CreateConnection(conDto dto.ConnectionDto) *dto.CreateConnectionResponseDto
 	GetConnection(participant_ids [2]string) *dto.ConnectionResponseDto
-	GetConnectionByUserId(userId string) *[]dto.ConnectionResponseDto
-	AcceptedConnection(id string) *dto.ConnectionResponseDto
+	GetConnectionByUserId(userId string, status string) *[]dto.ConnectionResponseDto
+	AcceptedConnection(id string) *dto.CreateConnectionResponseDto
+	RejectedConnection(id string) bool
 	DeleteConnection(id string) bool
 }
 
@@ -57,44 +57,24 @@ func (c *ConnectionService) CreateConnection(conDto dto.ConnectionDto) *dto.Crea
 		AcceptedAt:     newConnection.AcceptedAt,
 	}
 
-	// tạo channel ứng với connection
-	channelRes := c.channelService.CreateChannel(dto.CreateChannelDto{
-		ChannelType: string(schema.ChannelTypeDirect),
-		ChannelKey:  connRes.ConnectionId,
-	})
-	if channelRes == nil {
-		// Rollback connection
-		return nil
-	}
-	userIDs := connRes.ParticipantIDs[:]
-	// tạo members ứng với 2 userId trong connection
-	membersRes := c.channelService.AddMemberToChannel(dto.CreateChannelMemberDto{
-		ChannelId: channelRes.ChannelId,
-		UserIds:   userIDs,
-		Role:      string(schema.ChannelMemberRoleMember),
-		Status:    string(schema.ChannelMemberStatusActive),
-	})
-	if membersRes == nil {
-		fmt.Println("MemberRes is nil")
-		return nil
-	}
-
-	// tạo unreads ứng với 2 userId trong connection
-	unreadsRes := c.channelService.CreateChannelUnreads(dto.CreateChannelUnreadDto{
-		ChannelId: channelRes.ChannelId,
-		UserIds:   userIDs,
-		Unread:    0,
-		Version:   0,
-	})
-	if !unreadsRes {
-		return nil
-	}
-
 	return &dto.CreateConnectionResponseDto{
 		Connection: connRes,
-		Channel:    channelRes,
-		Members:    membersRes,
-		Unreads:    unreadsRes,
+		Requester: &dto.UserResponseDto{
+			UserId:    requestUser.ID.Hex(),
+			UserName:  requestUser.UserName,
+			Email:     requestUser.Email,
+			IsActive:  &requestUser.IsActive,
+			Role:      requestUser.Role.Hex(),
+			AvatarUrl: requestUser.AvatarUrl,
+		},
+		Receiver: &dto.UserResponseDto{
+			UserId:    receiveUser.ID.Hex(),
+			UserName:  receiveUser.UserName,
+			Email:     receiveUser.Email,
+			IsActive:  &receiveUser.IsActive,
+			Role:      receiveUser.Role.Hex(),
+			AvatarUrl: receiveUser.AvatarUrl,
+		},
 	}
 }
 
@@ -123,24 +103,47 @@ func (c *ConnectionService) GetConnection(participant_ids [2]string) *dto.Connec
 		Status:         string(connection.Status),
 		AcceptedAt:     connection.AcceptedAt,
 	}
-
 }
 
 // GetConnectionByUserId implements [IConnectionService].
-func (c *ConnectionService) GetConnectionByUserId(userId string) *[]dto.ConnectionResponseDto {
+func (c *ConnectionService) GetConnectionByUserId(userId string, status string) *[]dto.ConnectionResponseDto {
 	// kiểm tra user tồn tại không (tránh user_id ảo)
 	user := c.userRepo.GetUserById(userId)
 	if user == nil {
 		return nil
 	}
-	connections := c.connectionRepo.GetConnectionByUserId(userId)
-	fmt.Println("connections: ", *connections)
+
+	connections := c.connectionRepo.GetConnectionByUserId(userId, status)
 	responseConnection := make([]dto.ConnectionResponseDto, 0)
 	for _, connection := range *connections {
 		participantIDs := [2]string{
 			connection.ParticipantIDs[0].Hex(),
 			connection.ParticipantIDs[1].Hex(),
 		}
+
+		// Fetch requester & receiver info để đính kèm vào response
+		var requesterDto, receiverDto *dto.UserResponseDto
+		if requester := c.userRepo.GetUserById(connection.RequesterID.Hex()); requester != nil {
+			requesterDto = &dto.UserResponseDto{
+				UserId:    requester.ID.Hex(),
+				UserName:  requester.UserName,
+				Email:     requester.Email,
+				AvatarUrl: requester.AvatarUrl,
+				IsActive:  &requester.IsActive,
+				Role:      requester.Role.Hex(),
+			}
+		}
+		if receiver := c.userRepo.GetUserById(connection.ReceiverID.Hex()); receiver != nil {
+			receiverDto = &dto.UserResponseDto{
+				UserId:    receiver.ID.Hex(),
+				UserName:  receiver.UserName,
+				Email:     receiver.Email,
+				AvatarUrl: receiver.AvatarUrl,
+				IsActive:  &receiver.IsActive,
+				Role:      receiver.Role.Hex(),
+			}
+		}
+
 		responseConnection = append(responseConnection,
 			dto.ConnectionResponseDto{
 				ConnectionId:   connection.ID.Hex(),
@@ -149,24 +152,29 @@ func (c *ConnectionService) GetConnectionByUserId(userId string) *[]dto.Connecti
 				ParticipantIDs: participantIDs,
 				Status:         string(connection.Status),
 				AcceptedAt:     connection.AcceptedAt,
+				Requester:      requesterDto,
+				Receiver:       receiverDto,
 			})
 	}
 	return &responseConnection
 }
 
 // AcceptedConnection implements [IConnectionService].
-func (c *ConnectionService) AcceptedConnection(id string) *dto.ConnectionResponseDto {
+func (c *ConnectionService) AcceptedConnection(id string) *dto.CreateConnectionResponseDto {
 	ID := utils.ObjectIDFromHex(id)
 	if ID == primitive.NilObjectID {
 		return nil
 	}
-	// tạo channel luôn ?
 	connection := c.connectionRepo.AcceptedConnection(ID)
+	if connection == nil {
+		return nil
+	}
 	participantIDs := [2]string{
 		connection.ParticipantIDs[0].Hex(),
 		connection.ParticipantIDs[1].Hex(),
 	}
-	return &dto.ConnectionResponseDto{
+
+	connRes := &dto.ConnectionResponseDto{
 		ConnectionId:   connection.ID.Hex(),
 		RequesterId:    connection.RequesterID.Hex(),
 		ReceiverId:     connection.ReceiverID.Hex(),
@@ -174,6 +182,74 @@ func (c *ConnectionService) AcceptedConnection(id string) *dto.ConnectionRespons
 		Status:         string(connection.Status),
 		AcceptedAt:     connection.AcceptedAt,
 	}
+
+	// Fetch users to populate DTO
+	requestUser := c.userRepo.GetUserById(connection.RequesterID.Hex())
+	receiveUser := c.userRepo.GetUserById(connection.ReceiverID.Hex())
+
+	// Tạo channel khi connection được accept
+	channelRes := c.channelService.CreateChannel(dto.CreateChannelDto{
+		ChannelType: string(schema.ChannelTypeDirect),
+		ChannelKey:  connRes.ConnectionId,
+	})
+	if channelRes == nil {
+		return nil
+	}
+
+	userIDs := connRes.ParticipantIDs[:]
+	// Tạo members
+	membersRes := c.channelService.AddMemberToChannel(dto.CreateChannelMemberDto{
+		ChannelId: channelRes.ChannelId,
+		UserIds:   userIDs,
+		Role:      string(schema.ChannelMemberRoleMember),
+		Status:    string(schema.ChannelMemberStatusActive),
+	})
+	if membersRes == nil {
+		return nil
+	}
+
+	// Tạo unreads
+	unreadsRes := c.channelService.CreateChannelUnreads(dto.CreateChannelUnreadDto{
+		ChannelId: channelRes.ChannelId,
+		UserIds:   userIDs,
+		Unread:    0,
+		Version:   0,
+	})
+	if !unreadsRes {
+		return nil
+	}
+
+	return &dto.CreateConnectionResponseDto{
+		Connection: connRes,
+		Channel:    channelRes,
+		Members:    membersRes,
+		Unreads:    unreadsRes,
+		Requester: &dto.UserResponseDto{
+			UserId:    requestUser.ID.Hex(),
+			UserName:  requestUser.UserName,
+			Email:     requestUser.Email,
+			IsActive:  &requestUser.IsActive,
+			Role:      requestUser.Role.Hex(),
+			AvatarUrl: requestUser.AvatarUrl,
+		},
+		Receiver: &dto.UserResponseDto{
+			UserId:    receiveUser.ID.Hex(),
+			UserName:  receiveUser.UserName,
+			Email:     receiveUser.Email,
+			IsActive:  &receiveUser.IsActive,
+			Role:      receiveUser.Role.Hex(),
+			AvatarUrl: receiveUser.AvatarUrl,
+		},
+	}
+}
+
+// RejectedConnection implements [IConnectionService].
+func (c *ConnectionService) RejectedConnection(id string) bool {
+	ID := utils.ObjectIDFromHex(id)
+	if ID == primitive.NilObjectID {
+		return false
+	}
+	return c.connectionRepo.RejectedConnection(ID)
 }
 
 // DeleteConnection implements [IConnectionService].

@@ -35,7 +35,7 @@ func InitAuthRouterHandler() (*auth.AuthController, error) {
 
 // Injectors from channel.wire.go:
 
-func InitChannelRouterHandler() (*channel.ChannelController, error) {
+func InitChannelService() (channel.IChannelService, error) {
 	iChannelRepo := repo.NewChannelRepo()
 	iChannelMemberRepo := repo.NewChannelMemberRepo()
 	iChannelUnreadRepo := repo.NewChannelUnreadRepo()
@@ -48,13 +48,12 @@ func InitChannelRouterHandler() (*channel.ChannelController, error) {
 	iMessageRepo := repo2.NewMessageRepo()
 	channelIMessageRepo := provideChannelMessageRepo(iMessageRepo)
 	iChannelService := channel.NewChannelService(iChannelRepo, iChannelMemberRepo, iChannelUnreadRepo, channelIUserRepo, channelIConnectionRepo, channelIGroupRepo, channelIMessageRepo)
-	channelController := channel.NewChannelController(iChannelService)
-	return channelController, nil
+	return iChannelService, nil
 }
 
 // Injectors from connection.wire.go:
 
-func InitConnectionRouterHandler() (*conection.ConnectionController, error) {
+func InitConnectionService() (conection.IConnectionService, error) {
 	iUserRepo := user.NewUserRepo()
 	iConnectionRepo := conection.NewConnectionRepo()
 	iChannelRepo := repo.NewChannelRepo()
@@ -68,35 +67,36 @@ func InitConnectionRouterHandler() (*conection.ConnectionController, error) {
 	channelIMessageRepo := provideChannelMessageRepo(iMessageRepo)
 	iChannelService := channel.NewChannelService(iChannelRepo, iChannelMemberRepo, iChannelUnreadRepo, channelIUserRepo, channelIConnectionRepo, channelIGroupRepo, channelIMessageRepo)
 	iConnectionService := conection.NewConnectionService(iUserRepo, iConnectionRepo, iChannelService)
-	connectionController := conection.NewConnectionController(iConnectionService)
-	return connectionController, nil
+	return iConnectionService, nil
 }
 
 // Injectors from group.wire.go:
 
-func InitGroupRouterHandler() (*group.GroupController, error) {
+func InitGroupService() (group.IGroupService, error) {
 	iUserRepo := user.NewUserRepo()
 	iRoleRepo := role.NewRoleRepo()
-	iUserService := user.NewUserService(iUserRepo, iRoleRepo)
+	userIRoleRepo := provideUserRoleRepo(iRoleRepo)
+	iConnectionRepo := conection.NewConnectionRepo()
+	iConnectionService := provideUserConnectionService(iConnectionRepo)
+	iUserService := user.NewUserService(iUserRepo, userIRoleRepo, iConnectionService)
 	iGroupRepo := group.NewGroupRepo()
 	iChannelRepo := repo.NewChannelRepo()
 	iChannelMemberRepo := repo.NewChannelMemberRepo()
 	iChannelUnreadRepo := repo.NewChannelUnreadRepo()
 	channelIUserRepo := provideChannelUserRepo(iUserRepo)
-	iConnectionRepo := conection.NewConnectionRepo()
 	channelIConnectionRepo := provideChannelConnectionRepo(iConnectionRepo)
 	channelIGroupRepo := provideChannelGroupRepo(iGroupRepo)
 	iMessageRepo := repo2.NewMessageRepo()
 	channelIMessageRepo := provideChannelMessageRepo(iMessageRepo)
 	iChannelService := channel.NewChannelService(iChannelRepo, iChannelMemberRepo, iChannelUnreadRepo, channelIUserRepo, channelIConnectionRepo, channelIGroupRepo, channelIMessageRepo)
 	iGroupService := group.NewGroupService(iUserService, iGroupRepo, iChannelService)
-	groupController := group.NewGroupController(iGroupService)
-	return groupController, nil
+	return iGroupService, nil
 }
 
 // Injectors from message.wire.go:
 
-func InitMessageRouterHandler() (*message.MessageController, error) {
+// InitMessageService khởi tạo MessageService với tất cả dependencies (không bao gồm Hub)
+func InitMessageService() (message.IMessageService, error) {
 	iMessageRepo := repo2.NewMessageRepo()
 	iMessageOffsetRepo := repo2.NewMessageOffsetRepo()
 	iMessageExtraRepo := repo2.NewMessageExtraRepo()
@@ -105,9 +105,7 @@ func InitMessageRouterHandler() (*message.MessageController, error) {
 	iChannelMemberRepo := repo.NewChannelMemberRepo()
 	messageIChannelMemberRepo := provideMessageChannelMemberRepo(iChannelMemberRepo)
 	iMessageService := message.NewMessageService(iMessageRepo, iMessageOffsetRepo, iMessageExtraRepo, messageIChannelRepo, messageIChannelMemberRepo)
-	hub := websocket.NewHub()
-	messageController := message.NewMessageController(iMessageService, hub)
-	return messageController, nil
+	return iMessageService, nil
 }
 
 // Injectors from refresh-token.wire.go:
@@ -141,7 +139,10 @@ func InitUploadRouterHandler() (*upload.UploadController, error) {
 func InitUserRouterHandler() (*user.UserController, error) {
 	iUserRepo := user.NewUserRepo()
 	iRoleRepo := role.NewRoleRepo()
-	iUserService := user.NewUserService(iUserRepo, iRoleRepo)
+	userIRoleRepo := provideUserRoleRepo(iRoleRepo)
+	iConnectionRepo := conection.NewConnectionRepo()
+	iConnectionService := provideUserConnectionService(iConnectionRepo)
+	iUserService := user.NewUserService(iUserRepo, userIRoleRepo, iConnectionService)
 	userController := user.NewUserController(iUserService)
 	return userController, nil
 }
@@ -150,18 +151,6 @@ func InitUserRouterHandler() (*user.UserController, error) {
 
 func InitWebSocketHandler() (*websocket.Handler, error) {
 	hub := websocket.NewHub()
-	iChannelRepo := repo.NewChannelRepo()
-	iChannelMemberRepo := repo.NewChannelMemberRepo()
-	iChannelUnreadRepo := repo.NewChannelUnreadRepo()
-	iUserRepo := user.NewUserRepo()
-	channelIUserRepo := provideChannelUserRepo(iUserRepo)
-	iConnectionRepo := conection.NewConnectionRepo()
-	channelIConnectionRepo := provideChannelConnectionRepo(iConnectionRepo)
-	iGroupRepo := group.NewGroupRepo()
-	channelIGroupRepo := provideChannelGroupRepo(iGroupRepo)
-	iMessageRepo := repo2.NewMessageRepo()
-	channelIMessageRepo := provideChannelMessageRepo(iMessageRepo)
-	iChannelService := channel.NewChannelService(iChannelRepo, iChannelMemberRepo, iChannelUnreadRepo, channelIUserRepo, channelIConnectionRepo, channelIGroupRepo, channelIMessageRepo)
-	handler := websocket.NewHandler(hub, iChannelService)
+	handler := websocket.NewHandler(hub)
 	return handler, nil
 }

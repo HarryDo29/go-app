@@ -19,7 +19,7 @@ type IChannelService interface {
 }
 
 type IGroupService interface {
-	CreateGroup(createDto dto.CreateGroupDto) *dto.GroupResponseDto
+	CreateGroup(createDto dto.CreateGroupDto) *dto.ChannelResponseDto
 	UpdateGroup(groupId string, updateDto dto.UpdateGroupDto) *dto.GroupResponseDto
 	DeleteGroup(groupId string) bool
 }
@@ -31,7 +31,7 @@ type GroupService struct {
 }
 
 // CreateGroup implements [IGroupService].
-func (gc *GroupService) CreateGroup(groupDto dto.CreateGroupDto) *dto.GroupResponseDto {
+func (gc *GroupService) CreateGroup(groupDto dto.CreateGroupDto) *dto.ChannelResponseDto {
 	// tạo group
 	group := gc.groupRepo.CreateGroup(groupDto)
 	if group == nil {
@@ -45,6 +45,7 @@ func (gc *GroupService) CreateGroup(groupDto dto.CreateGroupDto) *dto.GroupRespo
 		OwnerId:     group.OwnerID.Hex(),
 		MemberCount: group.MemberCount,
 		Status:      group.Status,
+		Members:     nil,
 	}
 
 	// tạo channel ứng với group_id
@@ -65,9 +66,9 @@ func (gc *GroupService) CreateGroup(groupDto dto.CreateGroupDto) *dto.GroupRespo
 		Status:    string(schema.ChannelMemberStatusActive),
 	})
 	if membersRes == nil {
-		// Rollback channel và group
 		return nil
 	}
+	groupRes.Members = membersRes // gắn địa chỉ
 
 	// tạo unread cho member (mặc định unread: 0 và version: 0)
 	unreadsRes := gc.channelService.CreateChannelUnreads(dto.CreateChannelUnreadDto{
@@ -81,7 +82,8 @@ func (gc *GroupService) CreateGroup(groupDto dto.CreateGroupDto) *dto.GroupRespo
 		return nil
 	}
 
-	return groupRes
+	channelRes.Group = groupRes
+	return channelRes
 }
 
 // DeleteGroup implements [IGroupService].

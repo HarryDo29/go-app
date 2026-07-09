@@ -1,6 +1,8 @@
 package group
 
 import (
+	"go-app/global"
+	"go-app/internal/group"
 	"go-app/internal/middleware"
 	"go-app/internal/wire"
 
@@ -11,7 +13,9 @@ type GroupRouter struct{}
 
 func (gr *GroupRouter) InitGroupRouter(router *gin.RouterGroup) {
 	// wired (dependency injection DI)
-	groupController, _ := wire.InitGroupRouterHandler()
+	groupService, _ := wire.InitGroupService()
+	groupController := group.NewGroupController(groupService, global.WsHub)
+
 
 	groupRouter := router.Group("/groups")
 	groupRouter.Use(middleware.AuthNMiddleware()) // Áp dụng AuthenMiddleware

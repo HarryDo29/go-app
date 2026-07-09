@@ -2,19 +2,20 @@ package conection
 
 import (
 	dto "go-app/internal/dto"
+	"go-app/internal/schema"
+	"go-app/internal/websocket"
 	"go-app/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
 
-type ConnectionController struct {
-	connectionService IConnectionService
+type IWsHub interface {
+	Notify(userId string, event string, payload interface{}) bool
 }
 
-func NewConnectionController(connectionService IConnectionService) *ConnectionController {
-	return &ConnectionController{
-		connectionService: connectionService,
-	}
+type ConnectionController struct {
+	connectionService IConnectionService
+	hub               IWsHub
 }
 
 func (cc *ConnectionController) CreateConnection(c *gin.Context) {
@@ -28,7 +29,11 @@ func (cc *ConnectionController) CreateConnection(c *gin.Context) {
 		response.ErrorResponse(c, response.ErrCodeCreateFailed)
 		return
 	}
-	response.SuccessResponse(c, response.ErrCodeSuccess, result)
+
+	// Gửi realtime báo có Friend Request mới
+	cc.hub.Notify(conDto.ReceiverId, websocket.EventNewConnection, result.Connection)
+	// response
+	response.SuccessResponse(c, response.ErrCodeSuccess, result.Connection)
 }
 
 func (cc *ConnectionController) GetConnection(c *gin.Context) {
@@ -47,11 +52,12 @@ func (cc *ConnectionController) GetConnection(c *gin.Context) {
 
 func (cc *ConnectionController) GetConnectionByUserId(c *gin.Context) {
 	userId := c.GetString("user-id")
+	status := c.Query("status")
 	if userId == "" {
 		response.ErrorResponse(c, response.ErrCodeParamInvalid)
 		return
 	}
-	connection := cc.connectionService.GetConnectionByUserId(userId)
+	connection := cc.connectionService.GetConnectionByUserId(userId, status)
 	if connection == nil {
 		response.ErrorResponse(c, response.ErrCodeNotFound)
 		return
@@ -59,18 +65,50 @@ func (cc *ConnectionController) GetConnectionByUserId(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, connection)
 }
 
-func (cc *ConnectionController) AcceptedConnection(c *gin.Context) {
-	id := c.Param("connection-id")
-	if id == "" {
+func (cc *ConnectionController) RespondConnection(c *gin.Context) {
+	connectionId := c.Param("connection-id")
+	if connectionId == "" {
 		response.ErrorResponse(c, response.ErrCodeParamInvalid)
 		return
 	}
-	connection := cc.connectionService.AcceptedConnection(id)
-	if connection == nil {
-		response.ErrorResponse(c, response.ErrCodeUpdateFailed)
+
+	status := schema.ConnectionStatus(c.Query("status"))
+	if status == "" {
+		response.ErrorResponse(c, response.ErrCodeParamInvalid)
 		return
 	}
-	response.SuccessResponse(c, response.ErrCodeSuccess, connection)
+
+	switch status {
+	case schema.ConnectionStatusRejected:
+		success := cc.connectionService.RejectedConnection(connectionId)
+		if !success {
+			response.ErrorResponse(c, response.ErrCodeUpdateFailed)
+			return
+		}
+		response.SuccessResponse(c, response.ErrCodeSuccess, "Connection rejected")
+		return
+
+	case schema.ConnectionStatusAccepted:
+		connection := cc.connectionService.AcceptedConnection(connectionId)
+		if connection == nil {
+			response.ErrorResponse(c, response.ErrCodeUpdateFailed)
+			return
+		}
+		// Gửi realtime báo có Chat Channel mới cho cả 2 người
+		reqChannel := *connection.Channel
+		reqChannel.Subject = connection.Receiver
+
+		recChannel := *connection.Channel
+		recChannel.Subject = connection.Requester
+
+		cc.hub.Notify(connection.Connection.RequesterId, websocket.EventNewChannel, reqChannel)
+		cc.hub.Notify(connection.Connection.ReceiverId, websocket.EventNewChannel, recChannel)
+
+		response.SuccessResponse(c, response.ErrCodeSuccess, recChannel)
+		return
+	}
+
+	response.ErrorResponse(c, response.ErrCodeParamInvalid)
 }
 
 func (cc *ConnectionController) DeleteConnection(c *gin.Context) {
@@ -85,4 +123,11 @@ func (cc *ConnectionController) DeleteConnection(c *gin.Context) {
 		return
 	}
 	response.SuccessResponse(c, response.ErrCodeSuccess, connection)
+}
+
+func NewConnectionController(connectionService IConnectionService, hub IWsHub) *ConnectionController {
+	return &ConnectionController{
+		connectionService: connectionService,
+		hub:               hub,
+	}
 }

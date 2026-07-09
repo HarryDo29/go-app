@@ -1,6 +1,8 @@
 package channel
 
 import (
+	"go-app/global"
+	"go-app/internal/channel"
 	"go-app/internal/middleware"
 	"go-app/internal/wire"
 
@@ -11,7 +13,8 @@ type ChannelRouter struct{}
 
 func (cr *ChannelRouter) InitChannelRouter(router *gin.RouterGroup) {
 	// wired (dependency injection DI)
-	channelController, _ := wire.InitChannelRouterHandler()
+	channelService, _ := wire.InitChannelService()
+	channelController := channel.NewChannelController(channelService, global.WsHub)
 
 	channelRouter := router.Group("/channels")
 	channelRouter.Use(middleware.AuthNMiddleware()) // Áp dụng AuthenMiddleware

@@ -23,6 +23,7 @@ func (ur *UserRouter) InitUserRouter(router *gin.RouterGroup) {
 	userRouterPrivate.Use(middleware.AuthNMiddleware()) // Áp dụng AuthenMiddleware cho toàn bộ các route trong group này
 	{
 		userRouterPrivate.GET("/me", userController.GetMe)
+		userRouterPrivate.GET("/search", userController.SearchUsers)
 		userRouterPrivate.GET("/:user-id", userController.GetUserById)
 		userRouterPrivate.PUT("", userController.UpdateUser)
 		userRouterPrivate.DELETE("/:user-id", userController.DeleteUser)

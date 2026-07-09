@@ -13,7 +13,7 @@ import (
 	"github.com/google/wire"
 )
 
-func InitConnectionRouterHandler() (*connection.ConnectionController, error) {
+func InitConnectionService() (connection.IConnectionService, error) {
 	wire.Build(
 		user.NewUserRepo,
 		channelRepo.NewChannelRepo,
@@ -29,7 +29,6 @@ func InitConnectionRouterHandler() (*connection.ConnectionController, error) {
 		provideChannelMessageRepo,
 		channel.NewChannelService,
 		connection.NewConnectionService,
-		connection.NewConnectionController,
 	)
-	return new(connection.ConnectionController), nil
+	return nil, nil
 }

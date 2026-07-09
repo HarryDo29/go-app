@@ -17,16 +17,19 @@ type IChannelRepo interface {
 
 type IChannelMemberRepo interface {
 	CheckUserInChannel(channelId primitive.ObjectID, userId primitive.ObjectID) bool
+	GetChannelMembers(channelId primitive.ObjectID) *[]schema.DbChannelMember
 }
 
 type IMessageService interface {
 	CheckUserInChannel(channelId string, userId string) bool
+	// Lấy danh sách userId của tất cả member active trong channel (dùng để bắn realtime)
+	GetMemberIds(channelId string) []string
 	// Message CRUD
 	CreateMessage(userId string, createDto dto.CreateMessageDto) (*schema.Message, error)
 	UpdateMessage(msgId string, userId string, updateDto dto.UpdateMessageDto) (*schema.Message, error)
 
 	// Thu hồi tin nhắn: chỉ người gửi được dùng, soft-delete message → mọi người đều thấy bị thu hồi
-	RecallMessage(msgId string, userId string) bool
+	RecallMessage(msgId string, userId string) *dto.MessageResponseDto
 
 	// Ẩn tin nhắn chỉ với phía user hiện tại (dù là tin của mình hay người khác)
 	// Ghi vào message_extra, không ảnh hưởng phía người khác
@@ -73,6 +76,26 @@ func (s *MessageService) CheckUserInChannel(channelId string, userId string) boo
 		return false
 	}
 	return s.channelMemberRepo.CheckUserInChannel(cID, uID)
+}
+
+// GetMemberIds trả về danh sách userId (string) của tất cả member active trong channel
+// Dùng để bắn realtime qua WebSocket sau khi tạo/cập nhật tin nhắn
+func (s *MessageService) GetMemberIds(channelId string) []string {
+	cID := utils.ObjectIDFromHex(channelId)
+	if cID == primitive.NilObjectID {
+		return nil
+	}
+
+	members := s.channelMemberRepo.GetChannelMembers(cID)
+	if members == nil {
+		return nil
+	}
+
+	ids := make([]string, 0, len(*members))
+	for _, m := range *members {
+		ids = append(ids, m.UserID.Hex())
+	}
+	return ids
 }
 
 // CreateMessage tạo một tin nhắn mới trong channel.
@@ -123,7 +146,7 @@ func (s *MessageService) UpdateMessage(
 	}
 
 	// kiểm tra update dto có tồn tại k
-	if updateDto.Content != "" && updateDto.Status == "" {
+	if updateDto.Content == "" && updateDto.Status == "" {
 		return nil, errors.New("update data not exist")
 	}
 
@@ -137,30 +160,42 @@ func (s *MessageService) UpdateMessage(
 // RecallMessage thu hồi một tin nhắn do chính user gửi.
 // Chỉ người gửi (FromID == userId) mới được phép thu hồi.
 // Thực hiện soft-delete trên message → tất cả mọi người trong channel đều thấy tin bị thu hồi.
-func (s *MessageService) RecallMessage(msgId string, userId string) bool {
+func (s *MessageService) RecallMessage(msgId string, userId string) *dto.MessageResponseDto {
 	id := utils.ObjectIDFromHex(msgId)
 	if id == primitive.NilObjectID {
-		return false
+		return nil
 	}
 
 	existing := s.messageRepo.GetMessageByID(id)
 	if existing == nil {
-		return false
+		return nil
 	}
 	if existing.IsDelete {
-		return false
+		return nil
 	}
 
 	// Chỉ người gửi mới được thu hồi
 	if existing.FromID.Hex() != userId {
-		return false
+		return nil
 	}
 
 	ok := s.messageRepo.DeleteMessage(id)
 	if !ok {
-		return false
+		return nil
 	}
-	return true
+
+	// Trả về DTO của message đã bị xoá
+	return &dto.MessageResponseDto{
+		MsgId:          existing.ID.Hex(),
+		ChannelId:      existing.ChannelID.Hex(),
+		FromId:         existing.FromID.Hex(),
+		Content:        existing.Content,
+		MsgType:        string(existing.MsgType),
+		MsgSeq:         existing.MsgSeq,
+		Status:         string(existing.Status),
+		IsDelete:       true,
+		RepliedToMsgId: existing.RepliedToMsgID.Hex(),
+	}
 }
 
 // HideMessageForMe ẩn một tin nhắn chỉ với phía user hiện tại.

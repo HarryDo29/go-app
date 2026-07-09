@@ -17,8 +17,9 @@ type IConnectionRepo interface {
 	CreateConnection(conDto dto.ConnectionDto) *schema.DbConnection
 	GetConnectionById(id primitive.ObjectID) *schema.DbConnection
 	GetConnection(participantIDs [2]primitive.ObjectID) *schema.DbConnection
-	GetConnectionByUserId(userId string) *[]schema.DbConnection
+	GetConnectionByUserId(userId string, status string) *[]schema.DbConnection
 	AcceptedConnection(id primitive.ObjectID) *schema.DbConnection
+	RejectedConnection(id primitive.ObjectID) bool
 	DeleteConnection(id primitive.ObjectID) bool
 }
 
@@ -96,7 +97,7 @@ func (c *ConnectionRepo) GetConnection(participantIDs [2]primitive.ObjectID) *sc
 }
 
 // GetConnectionByUserId implements [IConnectionRepo].
-func (c *ConnectionRepo) GetConnectionByUserId(userId string) *[]schema.DbConnection {
+func (c *ConnectionRepo) GetConnectionByUserId(userId string, status string) *[]schema.DbConnection {
 	var connections []schema.DbConnection
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -106,8 +107,11 @@ func (c *ConnectionRepo) GetConnectionByUserId(userId string) *[]schema.DbConnec
 	userID := utils.ObjectIDFromHex(userId)
 	filter := bson.M{
 		"participant_ids": userID,
-		// "status":          schema.ConnectionStatusAccepted,
 	}
+	if status != "" {
+		filter["status"] = status
+	}
+	fmt.Println("get conn filter: ", filter)
 	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
 		fmt.Println("Connection get failed: ", err)
@@ -144,6 +148,28 @@ func (c *ConnectionRepo) AcceptedConnection(id primitive.ObjectID) *schema.DbCon
 		return nil
 	}
 	return c.GetConnectionById(id)
+}
+
+// RejectedConnection implements [IConnectionRepo].
+func (c *ConnectionRepo) RejectedConnection(id primitive.ObjectID) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	collection := global.Mgo.Database.Collection(schema.CollectionNameConnection)
+	result, err := collection.UpdateOne(
+		ctx,
+		bson.M{"_id": id},
+		bson.M{
+			"$set": bson.M{
+				"status":     schema.ConnectionStatusRejected,
+				"updated_at": time.Now(),
+			},
+		},
+	)
+	if err != nil || result.ModifiedCount == 0 {
+		return false
+	}
+	return true
 }
 
 // DeleteConnection implements [IConnectionRepo].

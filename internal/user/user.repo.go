@@ -11,6 +11,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // INTERFACE
@@ -20,6 +21,7 @@ type IUserRepo interface {
 	GetUserById(id string) *schema.DbUser
 	UpdateUser(id string, updateDto dto.UpdateUserDto) *schema.DbUser
 	DeleteUser(id string) bool
+	SearchUsers(keyword string, userId string, limit int) *[]schema.DbUser
 }
 
 type userRepo struct{}
@@ -65,6 +67,51 @@ func (ur *userRepo) CreateUser(userDto dto.UserDto) *schema.DbUser {
 		return nil
 	}
 	return &user
+}
+
+// SearchUsers implements [IUserRepo].
+func (ur *userRepo) SearchUsers(keyword string, userId string, limit int) *[]schema.DbUser {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	collection := global.Mgo.Database.Collection(schema.CollectionNameUser)
+	userID := utils.ObjectIDFromHex(userId)
+
+	// Create regex pattern for case-insensitive search
+	filter := bson.M{
+		// $or: MongoDB chỉ cần tìm 1 trong các điều kiện đúng
+		"$or": []bson.M{
+			{"user_name": bson.M{"$regex": keyword, "$options": "i"}},
+			{"email": bson.M{"$regex": keyword, "$options": "i"}},
+			// "$options": "i": i viết tắt là insensitive (không tính hoa thường)
+		},
+	}
+
+	if userID != primitive.NilObjectID {
+		filter = bson.M{
+			"$and": []bson.M{
+				filter,
+				{"_id": bson.M{"$ne": userID}},
+				// $ne: not equal (khác với userID)
+			},
+		}
+	}
+
+	opts := options.Find().SetLimit(int64(limit))
+	cursor, err := collection.Find(ctx, filter, opts)
+	if err != nil {
+		fmt.Println("Search users error: ", err)
+		return nil
+	}
+	defer cursor.Close(ctx)
+
+	var users []schema.DbUser
+	if err := cursor.All(ctx, &users); err != nil {
+		fmt.Println("Decode search users error: ", err)
+		return nil
+	}
+
+	return &users
 }
 
 // GetUser implements [IUserRepo].

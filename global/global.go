@@ -3,6 +3,7 @@ package global
 import (
 	"go-app/pkg/logger"
 	"go-app/pkg/setting"
+	"go-app/internal/websocket"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/patrickmn/go-cache"
@@ -25,6 +26,7 @@ var (
 	MongoCollectionsToCreate []string // mongodb collections to create
 	Minio                    *minio.Client
 	Cache                    *cache.Cache
+	WsHub                    *websocket.Hub // singleton Hub dùng chung toàn app
 )
 
 // RegisterModel function registers a model to the list of models to migrate

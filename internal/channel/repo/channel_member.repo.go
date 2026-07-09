@@ -43,12 +43,21 @@ func (c *ChannelMemberRepo) CreateChannelMember(channelMemberDto dto.CreateChann
 		if c.CheckUserInChannel(channelId, userId) {
 			continue
 		}
+		role := schema.ChannelMemberRole(channelMemberDto.Role)
+		if role == "" {
+			role = schema.ChannelMemberRoleMember
+		}
+		status := schema.ChannelMemberStatus(channelMemberDto.Status)
+		if status == "" {
+			status = schema.ChannelMemberStatusActive
+		}
+
 		member := &schema.DbChannelMember{
 			ID:        primitive.NewObjectID(),
 			ChannelID: channelId,
 			UserID:    userId,
-			Role:      schema.ChannelMemberRoleMember,
-			Status:    schema.ChannelMemberStatusActive,
+			Role:      role,
+			Status:    status,
 			JoinedAt:  time.Now(),
 		}
 		members = append(members, member)

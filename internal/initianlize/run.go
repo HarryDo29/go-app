@@ -3,6 +3,7 @@ package initianlize
 import (
 	"fmt"
 	"go-app/global"
+	"go-app/internal/websocket"
 	"time"
 
 	"github.com/patrickmn/go-cache"
@@ -26,7 +27,11 @@ func Run() {
 	global.Cache = cache.New(5*time.Minute, 10*time.Minute)
 	// miniIO
 	InitMinio()
+	// init websocket Hub (singleton - dùng chung toàn app)
+	global.WsHub = websocket.NewHub()
+	go global.WsHub.Run()
 	// router
 	r := InitRouter()
 	r.Run(":8081")
 }
+

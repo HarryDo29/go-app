@@ -1,19 +1,28 @@
 package channel
 
 import (
+	"fmt"
 	dto "go-app/internal/dto"
+	"go-app/internal/websocket"
 	"go-app/pkg/response"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-type ChannelController struct {
-	channelService IChannelService
+type IWsHub interface {
+	Notify(userId string, event string, payload interface{}) bool
 }
 
-func NewChannelController(channelService IChannelService) *ChannelController {
+type ChannelController struct {
+	channelService IChannelService
+	wsHub          IWsHub
+}
+
+func NewChannelController(channelService IChannelService, wsHub IWsHub) *ChannelController {
 	return &ChannelController{
 		channelService: channelService,
+		wsHub:          wsHub,
 	}
 }
 
@@ -25,28 +34,31 @@ func (cc *ChannelController) GetChannels(c *gin.Context) {
 		return
 	}
 	channelType := c.Query("type")
+	updatedAtStr := c.Query("updated_at")
+	limit := 10
 
-	result := cc.channelService.GetChannels(userId, channelType)
+	updatedAt := time.Now().UTC()
+	if updatedAtStr != "" {
+		parsedTime, err := time.Parse(time.RFC3339, updatedAtStr)
+		if err != nil {
+			response.ErrorResponse(c, response.ErrCodeParamInvalid)
+			return
+		}
+		updatedAt = parsedTime
+	}
+
+	queryDto := dto.ChannelQueryDto{
+		ChannelType: channelType,
+		UpdatedAt:   updatedAt,
+		Limit:       limit,
+	}
+	result := cc.channelService.GetChannels(userId, queryDto)
 	if result == nil {
 		response.ErrorResponse(c, response.ErrCodeNotFound)
 		return
 	}
 	response.SuccessResponse(c, response.ErrCodeSuccess, result)
 }
-
-// func (cc *ChannelController) GetChannel(c *gin.Context) {
-// 	channelId := c.Param("channelId")
-// 	if channelId == "" {
-// 		response.ErrorResponse(c, response.ErrCodeParamInvalid)
-// 		return
-// 	}
-// 	result := cc.channelService.GetChannel(channelId)
-// 	if result == nil {
-// 		response.ErrorResponse(c, response.ErrCodeNotFound)
-// 		return
-// 	}
-// 	response.SuccessResponse(c, response.ErrCodeSuccess, result)
-// }
 
 func (cc *ChannelController) UpdateChannel(c *gin.Context) {
 	channelId := c.Param("channel-id")
@@ -92,7 +104,7 @@ func (cc *ChannelController) AddMemberToChannel(c *gin.Context) {
 		return
 	}
 	// thêm tv
-	members := cc.channelService.AddMemberToChannel(memberDto)
+	members := cc.channelService.AddMemberToGroupChannel(memberDto)
 	if members == nil {
 		response.ErrorResponse(c, response.ErrCodeCreateFailed)
 		return
@@ -107,6 +119,31 @@ func (cc *ChannelController) AddMemberToChannel(c *gin.Context) {
 	if !unreads {
 		response.ErrorResponse(c, response.ErrCodeCreateFailed)
 		return
+	}
+	// broadcast new channel to new member
+	channelDetail := cc.channelService.GetChannel(memberDto.ChannelId)
+	if channelDetail != nil {
+		for _, newMemberId := range memberDto.UserIds {
+			cc.wsHub.Notify(newMemberId, websocket.EventNewChannel, channelDetail)
+		}
+	}
+
+	// brodcast update channel member to existing members
+	// Sử dụng trực tiếp memberDto.UserIds vì đây là danh sách những user MỚI thực sự được add
+	newMemberMap := make(map[string]bool)
+	for _, id := range memberDto.UserIds {
+		newMemberMap[id] = true
+	}
+
+	channelMembers := cc.channelService.GetChannelMembers(memberDto.ChannelId)
+	if channelMembers != nil {
+		for _, channelMember := range *channelMembers {
+			// Chỉ gửi sự kiện cho những ai KHÔNG nằm trong danh sách add mới (tức là thành viên cũ)
+			if !newMemberMap[channelMember.User.UserId] {
+				cc.wsHub.Notify(channelMember.User.UserId, websocket.EventUpdatedChannel, channelDetail)
+			}
+			fmt.Println("channel member", channelMember)
+		}
 	}
 	response.SuccessResponse(c, response.ErrCodeSuccess, gin.H{
 		"members": members,

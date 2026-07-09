@@ -22,3 +22,9 @@ type UserResponseDto struct {
 	IsActive  *bool  `json:"is_active"`
 	Role      string `json:"role"`
 }
+
+type UserSearchResponseDto struct {
+	UserResponseDto
+	RelationStatus string `json:"relation_status"` // NONE, PENDING, ACCEPTED, REJECTED
+	ConnectionId   string `json:"connection_id,omitempty"`
+}

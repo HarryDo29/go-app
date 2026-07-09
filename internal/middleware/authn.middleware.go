@@ -15,7 +15,6 @@ import (
 func AuthNMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		accCache, ok := global.Cache.Get("access_option")
-		fmt.Println("acc_cache:", accCache)
 		if !ok {
 			response.ErrorResponse(
 				c,
@@ -25,10 +24,21 @@ func AuthNMiddleware() gin.HandlerFunc {
 			return
 		}
 		accTokenOption := accCache.(utils.SecretKey)
-		fmt.Println("acc_cache:", accTokenOption)
 
+		var tokenStr string
 		token := c.GetHeader("Authorization")
-		if token == "" {
+
+		if token != "" {
+			parts := strings.Split(strings.TrimSpace(token), " ")
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				tokenStr = parts[1]
+			}
+		} else {
+			// Thử lấy từ query parameter cho trường hợp WebSocket
+			tokenStr = c.Query("token")
+		}
+
+		if tokenStr == "" {
 			response.ErrorResponse(
 				c,
 				response.ErrCodeTokenNotFound,
@@ -37,17 +47,7 @@ func AuthNMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		parts := strings.Split(strings.TrimSpace(token), " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			response.ErrorResponse(
-				c,
-				response.ErrCodeTokenInvalid,
-			)
-			c.Abort()
-			return
-		}
-
-		claims, err := utils.VerifyJWT(parts[1], accTokenOption)
+		claims, err := utils.VerifyJWT(tokenStr, accTokenOption)
 		if err != nil {
 			fmt.Println("err: ", err)
 			if errors.Is(err, jwt.ErrTokenExpired) {

@@ -12,6 +12,7 @@ import (
 	"go-app/internal/group"
 	"go-app/internal/message"
 	messageRepo "go-app/internal/message/repo"
+	"go-app/internal/role"
 	"go-app/internal/user"
 )
 
@@ -28,3 +29,9 @@ func provideMessageChannelRepo(r channelRepo.IChannelRepo) message.IChannelRepo 
 func provideMessageChannelMemberRepo(r channelRepo.IChannelMemberRepo) message.IChannelMemberRepo {
 	return r
 }
+
+func provideUserRoleRepo(r role.IRoleRepo) user.IRoleRepo {
+	return r
+}
+
+func provideUserConnectionService(r connection.IConnectionRepo) user.IConnectionService { return r }

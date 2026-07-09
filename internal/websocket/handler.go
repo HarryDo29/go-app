@@ -1,23 +1,20 @@
 package websocket
 
 import (
-	"go-app/internal/channel"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	gorilla "github.com/gorilla/websocket"
 )
 
 type Handler struct {
-	Hub            *Hub
-	ChannelService channel.IChannelService
+	Hub *Hub
 }
 
-func NewHandler(hub *Hub, channelService channel.IChannelService) *Handler {
+func NewHandler(hub *Hub) *Handler {
 	return &Handler{
-		Hub:            hub,
-		ChannelService: channelService,
+		Hub: hub,
 	}
 }
 
@@ -34,8 +31,9 @@ var upgrader = gorilla.Upgrader{
 func (h *Handler) HandleWebSocket(c *gin.Context) {
 	// get user id from context (AuthMiddleware)
 	userId := c.GetString("user-id")
+	connectionId := c.Query("connectionId")
 
-	if userId == "" {
+	if userId == "" || connectionId == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"message": "unauthorized",
 		})
@@ -53,20 +51,14 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 
 	client := &Client{
 		UserId:       userId,
-		ConnectionId: uuid.New().String(),
+		ConnectionId: connectionId,
 		Conn:         conn,
 		Hub:          h.Hub,
-		Send:         make(chan MessagePayload, 256),
+		Send:         make(chan WsResponse, 256),
 	}
 
 	h.Hub.Register(client)
-
-	channels := h.ChannelService.GetChannelsByUserId(userId)
-	if channels != nil {
-		for _, ch := range *channels {
-			h.Hub.JoinChannel(ch.ChannelId, userId)
-		}
-	}
+	fmt.Println("client connected:", client.UserId, client.ConnectionId)
 
 	go client.WritePump()
 	go client.ReadPump()

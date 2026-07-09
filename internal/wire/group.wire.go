@@ -14,7 +14,7 @@ import (
 	"github.com/google/wire"
 )
 
-func InitGroupRouterHandler() (*group.GroupController, error) {
+func InitGroupService() (group.IGroupService, error) {
 	wire.Build(
 		role.NewRoleRepo,
 		user.NewUserRepo,
@@ -30,9 +30,10 @@ func InitGroupRouterHandler() (*group.GroupController, error) {
 		provideChannelConnectionRepo,
 		provideChannelGroupRepo,
 		provideChannelMessageRepo,
+		provideUserRoleRepo,
+		provideUserConnectionService,
 		channel.NewChannelService,
 		group.NewGroupService,
-		group.NewGroupController,
 	)
-	return new(group.GroupController), nil
+	return nil, nil
 }

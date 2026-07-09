@@ -31,7 +31,7 @@ type IMessageRepo interface {
 type IChannelService interface {
 	//channel
 	CreateChannel(channelDto dto.CreateChannelDto) *dto.ChannelResponseDto // tạo channel + tạo member (owner, ...)
-	GetChannels(userId string, channelType string) *[]dto.ChannelResponseDto
+	GetChannels(userId string, queryDto dto.ChannelQueryDto) *[]dto.ChannelResponseDto
 	GetChannelsByUserId(userId string) *[]dto.ChannelResponseDto
 	GetChannel(channelId string) *dto.ChannelResponseDto // active
 	UpdateChannel(
@@ -41,6 +41,7 @@ type IChannelService interface {
 
 	// channel-member
 	AddMemberToChannel(channelMemberDto dto.CreateChannelMemberDto) *[]dto.ChannelMemberResponseDto
+	AddMemberToGroupChannel(channelMemberDto dto.CreateChannelMemberDto) *[]dto.ChannelMemberResponseDto
 	RemoveMemberFromChannel(channelMemberId string) bool // remove member (set stauts left or delete)
 	// GetChannelIdsByUserId(userId string) *[]primitive.ObjectID          // danh sách channelId của user
 	GetChannelMembers(channelId string) *[]dto.ChannelMemberResponseDto // view danh sách member
@@ -83,6 +84,7 @@ func (c *ChannelService) CreateChannel(channelDto dto.CreateChannelDto) *dto.Cha
 		Subject:     nil,
 		Group:       nil,
 		LastMsg:     nil,
+		UpdatedAt:   channel.UpdatedAt,
 	}
 
 	switch channel.ChannelType {
@@ -97,18 +99,13 @@ func (c *ChannelService) CreateChannel(channelDto dto.CreateChannelDto) *dto.Cha
 	return &resDto
 }
 
-func (c *ChannelService) GetChannels(userId string, channelType string) *[]dto.ChannelResponseDto {
+func (c *ChannelService) GetChannels(userId string, queryDto dto.ChannelQueryDto) *[]dto.ChannelResponseDto {
 	userID := utils.ObjectIDFromHex(userId)
 	if userID == primitive.NilObjectID {
 		return nil
 	}
 
-	channelIDs := c.channelMemberRepo.GetChannelIds(userID)
-	if channelIDs == nil {
-		return nil
-	}
-
-	channels := c.channelRepo.GetChannels(*channelIDs)
+	channels := c.channelRepo.GetChannelsByQuery(userID, queryDto)
 	if channels == nil {
 		return nil
 	}
@@ -117,11 +114,6 @@ func (c *ChannelService) GetChannels(userId string, channelType string) *[]dto.C
 	for _, channel := range *channels {
 		cType := string(channel.ChannelType)
 
-		// Lọc theo type nếu có truyền lên
-		if channelType != "" && cType != channelType {
-			continue
-		}
-
 		tmp := dto.ChannelResponseDto{
 			ChannelId:   channel.ID.Hex(),
 			ChannelType: string(channel.ChannelType),
@@ -129,9 +121,10 @@ func (c *ChannelService) GetChannels(userId string, channelType string) *[]dto.C
 			Subject:     nil,
 			Group:       nil,
 			LastMsg:     nil,
+			UpdatedAt:   channel.UpdatedAt,
 		}
 
-		switch channelType {
+		switch cType {
 		case string(schema.ChannelTypeDirect):
 			// get connection (by channel key)
 			connection := c.connectionRepo.GetConnectionById(channel.ChannelKey)
@@ -228,7 +221,7 @@ func (c *ChannelService) GetChannels(userId string, channelType string) *[]dto.C
 
 // GetChannelsByUserId implements [IChannelService].
 func (c *ChannelService) GetChannelsByUserId(userId string) *[]dto.ChannelResponseDto {
-	return c.GetChannels(userId, "")
+	return c.GetChannels(userId, dto.ChannelQueryDto{})
 }
 
 // GetChannel implements [IChannelService].
@@ -243,14 +236,78 @@ func (c *ChannelService) GetChannel(channelId string) *dto.ChannelResponseDto {
 		return nil
 	}
 
-	return &dto.ChannelResponseDto{
+	res := dto.ChannelResponseDto{
 		ChannelId:   channel.ID.Hex(),
 		ChannelType: string(channel.ChannelType),
 		ChannelKey:  channel.ChannelKey.Hex(),
 		Subject:     nil,
 		Group:       nil,
 		LastMsg:     nil,
+		UpdatedAt:   channel.UpdatedAt,
 	}
+
+	// get group (channel key)
+	group := c.groupRepo.GetGroupByID(channel.ChannelKey)
+
+	res.Group = &dto.GroupResponseDto{
+		GroupId:     group.ID.Hex(),
+		GroupName:   group.Name,
+		OwnerId:     group.OwnerID.Hex(),
+		MemberCount: group.MemberCount,
+		Status:      group.Status,
+		Members:     nil,
+	}
+
+	// get members (channel_members)
+	members := make([]dto.ChannelMemberResponseDto, 0)
+	result := c.channelMemberRepo.GetChannelMembers(channel.ID)
+
+	for _, member := range *result {
+		if member.LeftAt == nil &&
+			(member.Status != schema.ChannelMemberStatusKicked && member.Status != schema.ChannelMemberStatusLeft) {
+			user := c.userRepo.GetUserById(member.UserID.Hex())
+			if user == nil {
+				continue
+			}
+			userRes := &dto.UserResponseDto{
+				UserId:    user.ID.Hex(),
+				UserName:  user.UserName,
+				Email:     user.Email,
+				IsActive:  &user.IsActive,
+				Role:      user.Role.Hex(),
+				AvatarUrl: user.AvatarUrl,
+			}
+			members = append(members, dto.ChannelMemberResponseDto{
+				MemberId:  member.ID.Hex(),
+				ChannelId: member.ChannelID.Hex(),
+				User:      userRes,
+				Role:      string(member.Role),
+				Status:    string(member.Status),
+				JoinedAt:  member.JoinedAt,
+			})
+		}
+	}
+	res.Group.Members = &members
+
+	// get last message
+	lastMsg := c.msgRepo.GetMessageByID(channel.LastMsgID)
+	if lastMsg == nil {
+		res.LastMsg = nil
+	} else {
+		res.LastMsg = &dto.MessageResponseDto{
+			MsgId:          lastMsg.ID.Hex(),
+			ChannelId:      lastMsg.ChannelID.Hex(),
+			FromId:         lastMsg.FromID.Hex(),
+			Content:        lastMsg.Content,
+			MsgType:        string(lastMsg.MsgType),
+			MsgSeq:         lastMsg.MsgSeq,
+			Status:         string(lastMsg.Status),
+			IsDelete:       lastMsg.IsDelete,
+			RepliedToMsgId: lastMsg.RepliedToMsgID.Hex(),
+		}
+	}
+
+	return &res
 }
 
 // UpdateChannel implements [IChannelService].
@@ -275,6 +332,7 @@ func (c *ChannelService) UpdateChannel(
 		Subject:     nil,
 		Group:       nil,
 		LastMsg:     nil,
+		UpdatedAt:   channel.UpdatedAt,
 	}
 }
 
@@ -287,35 +345,15 @@ func (c *ChannelService) DeleteChannel(channelId string) bool {
 	return c.channelRepo.DeleteChannel(channelID)
 }
 
-// AddMemberToChannel implements [IChannelService].
 func (c *ChannelService) AddMemberToChannel(channelMemberDto dto.CreateChannelMemberDto) *[]dto.ChannelMemberResponseDto {
 	members := c.channelMemberRepo.CreateChannelMember(channelMemberDto)
 	if members == nil {
 		return nil
 	}
 
-	// update lại tv trong group
-	updateDto := dto.UpdateGroupDto{
-		MemberCount: int64(len(*members)),
-	}
-
-	channelID := utils.ObjectIDFromHex(channelMemberDto.ChannelId)
-	if channelID == primitive.NilObjectID {
-		return nil
-	}
-
-	channel := c.channelRepo.GetChannelById(channelID)
-	if channel == nil || channel.ChannelType != schema.ChannelTypeGroup {
-		return nil
-	}
-
-	group := c.groupRepo.UpdateGroup(channel.ChannelKey, updateDto)
-	if group == nil {
-		return nil
-	}
-
 	memberRes := make([]dto.ChannelMemberResponseDto, 0)
 	for _, member := range *members {
+		c.channelRepo.AddParticipant(member.ChannelID, member.UserID) // thêm participant_id vào channel
 		memberRes = append(memberRes, dto.ChannelMemberResponseDto{
 			MemberId:  member.ID.Hex(),
 			ChannelId: member.ChannelID.Hex(),
@@ -328,23 +366,55 @@ func (c *ChannelService) AddMemberToChannel(channelMemberDto dto.CreateChannelMe
 	return &memberRes
 }
 
+// AddMemberToGroupChannel implements [IChannelService].
+func (c *ChannelService) AddMemberToGroupChannel(channelMemberDto dto.CreateChannelMemberDto) *[]dto.ChannelMemberResponseDto {
+	channelID := utils.ObjectIDFromHex(channelMemberDto.ChannelId)
+	if channelID == primitive.NilObjectID {
+		return nil
+	}
+
+	channel := c.channelRepo.GetChannelById(channelID)
+	if channel == nil || channel.ChannelType != schema.ChannelTypeGroup {
+		return nil
+	}
+
+	// Gọi hàm AddMemberToChannel chung để xử lý thêm thành viên
+	memberRes := c.AddMemberToChannel(channelMemberDto)
+	if memberRes == nil {
+		return nil
+	}
+
+	// Tính tổng số lượng thành viên thực tế của nhóm
+	totalMembers := c.channelMemberRepo.GetChannelMembers(channelID)
+	var memberCount int64 = 0
+	if totalMembers != nil {
+		memberCount = int64(len(*totalMembers))
+	}
+
+	updateDto := dto.UpdateGroupDto{
+		MemberCount: memberCount,
+	}
+
+	group := c.groupRepo.UpdateGroup(channel.ChannelKey, updateDto)
+	if group == nil {
+		return nil
+	}
+
+	return memberRes
+}
+
 // RemoveMemberFromChannel implements [IChannelService].
 func (c *ChannelService) RemoveMemberFromChannel(channelMemberId string) bool {
 	memberId := utils.ObjectIDFromHex(channelMemberId)
 	if memberId == primitive.NilObjectID {
 		return false
 	}
+	member := c.channelMemberRepo.GetChannelMemberById(memberId)
+	if member != nil {
+		c.channelRepo.RemoveParticipant(member.ChannelID, member.UserID)
+	}
 	return c.channelMemberRepo.DeleteChannelMember(memberId)
 }
-
-// GetChannelIdByUserId implements [IChannelService].
-// func (c *ChannelService) GetChannelIdsByUserId(userId string) *[]primitive.ObjectID {
-// 	userId, err := primitive.ObjectIDFromHex(userId)
-// 	if err != nil {
-// 		return nil
-// 	}
-// 	return c.channelMemberRepo.GetChannelIds(userId)
-// }
 
 // GetChannelMembers implements [IChannelService].
 func (c *ChannelService) GetChannelMembers(channelId string) *[]dto.ChannelMemberResponseDto {
@@ -360,10 +430,23 @@ func (c *ChannelService) GetChannelMembers(channelId string) *[]dto.ChannelMembe
 
 	memberRes := make([]dto.ChannelMemberResponseDto, 0)
 	for _, member := range *members {
+		var userRes *dto.UserResponseDto
+		user := c.userRepo.GetUserById(member.UserID.Hex())
+		if user != nil {
+			userRes = &dto.UserResponseDto{
+				UserId:    user.ID.Hex(),
+				UserName:  user.UserName,
+				Email:     user.Email,
+				IsActive:  &user.IsActive,
+				Role:      user.Role.Hex(),
+				AvatarUrl: user.AvatarUrl,
+			}
+		}
+
 		memberRes = append(memberRes, dto.ChannelMemberResponseDto{
 			MemberId:  member.ID.Hex(),
 			ChannelId: member.ChannelID.Hex(),
-			User:      nil,
+			User:      userRes,
 			Role:      string(member.Role),
 			Status:    string(member.Status),
 			JoinedAt:  member.JoinedAt,

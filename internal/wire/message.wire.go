@@ -6,12 +6,12 @@ import (
 	channelRepo "go-app/internal/channel/repo"
 	"go-app/internal/message"
 	messageRepo "go-app/internal/message/repo"
-	"go-app/internal/websocket"
 
 	"github.com/google/wire"
 )
 
-func InitMessageRouterHandler() (*message.MessageController, error) {
+// InitMessageService khởi tạo MessageService với tất cả dependencies (không bao gồm Hub)
+func InitMessageService() (message.IMessageService, error) {
 	wire.Build(
 		channelRepo.NewChannelRepo,
 		channelRepo.NewChannelMemberRepo,
@@ -22,8 +22,6 @@ func InitMessageRouterHandler() (*message.MessageController, error) {
 		provideMessageChannelRepo,
 		provideMessageChannelMemberRepo,
 		message.NewMessageService,
-		websocket.NewHub,
-		message.NewMessageController,
 	)
-	return new(message.MessageController), nil
+	return nil, nil
 }

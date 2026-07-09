@@ -1,9 +1,9 @@
 package websocket
 
 import (
+	"go-app/global"
 	"go-app/internal/middleware"
 	ws "go-app/internal/websocket"
-	"go-app/internal/wire"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,9 +19,8 @@ func NewWebSocketRouter(handler *ws.Handler) *WebSocketRouter {
 }
 
 func (r *WebSocketRouter) InitWebSocketRouter(router *gin.RouterGroup) {
-	wsHandler, _ := wire.InitWebSocketHandler()
-
-	go wsHandler.Hub.Run()
+	// Dùng global.WsHub (singleton) - Hub đã được khởi tạo và chạy trong run.go
+	wsHandler := ws.NewHandler(global.WsHub)
 
 	wsRouter := router.Group("/ws")
 	wsRouter.Use(middleware.AuthNMiddleware())

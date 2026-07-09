@@ -1,6 +1,8 @@
 package message
 
 import (
+	"go-app/global"
+	"go-app/internal/message"
 	"go-app/internal/middleware"
 	"go-app/internal/wire"
 
@@ -10,8 +12,9 @@ import (
 type MessageRouter struct{}
 
 func (mr *MessageRouter) InitMessageRouter(router *gin.RouterGroup) {
-	// wired (dependency injection DI)
-	messageController, _ := wire.InitMessageRouterHandler()
+	// Khởi tạo service qua wire, truyền thêm global.WsHub (singleton)
+	messageService, _ := wire.InitMessageService()
+	messageController := message.NewMessageController(messageService, global.WsHub)
 
 	messageRouter := router.Group("")
 	messageRouter.Use(middleware.AuthNMiddleware()) // Áp dụng AuthenMiddleware

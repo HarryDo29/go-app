@@ -6,18 +6,24 @@ import (
 	"go-app/pkg/response"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+type IWsHub interface {
+	Notify(userId string, event string, payload interface{}) bool
+}
 
 type MessageController struct {
 	messageService IMessageService
-	hub            *websocket.Hub
+	hub            IWsHub
 }
 
 func NewMessageController(
 	messageService IMessageService,
-	hub *websocket.Hub,
+	hub IWsHub,
 ) *MessageController {
 	return &MessageController{
 		messageService: messageService,
@@ -45,13 +51,26 @@ func (mc *MessageController) CreateMessage(c *gin.Context) {
 		return
 	}
 
-	// Bắn realtime qua WebSocket
-	// mc.hub.Broadcast(websocket.MessagePayload{
-	// 	ChannelId: msg.ChannelID.Hex(),
-	// 	SenderId:  msg.FromID.Hex(),
-	// 	Content:   msg.Content,
-	// 	Type:      string(msg.MsgType),
-	// })
+	messageResponse := dto.MessageResponseDto{
+		MsgId:     msg.ID.Hex(),
+		ChannelId: msg.ChannelID.Hex(),
+		FromId:    msg.FromID.Hex(),
+		Content:   msg.Content,
+		MsgType:   string(msg.MsgType),
+		MsgSeq:    msg.MsgSeq,
+		Status:    string(msg.Status),
+		IsDelete:  msg.IsDelete,
+		CreatedAt: msg.CreatedAt.Format(time.RFC3339),
+	}
+	if msg.RepliedToMsgID != primitive.NilObjectID {
+		messageResponse.RepliedToMsgId = msg.RepliedToMsgID.Hex()
+	}
+
+	// Bắn realtime qua WebSocket đến tất cả member trong channel
+	memberIds := mc.messageService.GetMemberIds(msgDto.ChannelId)
+	for _, memberId := range memberIds {
+		mc.hub.Notify(memberId, websocket.EventNewMessage, messageResponse)
+	}
 
 	response.SuccessResponse(c, response.ErrCodeSuccess, msg)
 }
@@ -69,21 +88,41 @@ func (mc *MessageController) UpdateMessage(c *gin.Context) {
 		return
 	}
 
-	var req dto.UpdateMessageDto
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var updateMsgDto dto.UpdateMessageDto
+	if err := c.ShouldBindJSON(&updateMsgDto); err != nil {
 		response.ErrorResponse(c, response.ErrCodeBodyInvalid)
 		return
 	}
 
-	msg, err := mc.messageService.UpdateMessage(msgId, userId, req)
+	msg, err := mc.messageService.UpdateMessage(msgId, userId, updateMsgDto)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Có thể thêm event Broadcast update_message nếu cần
+	// Map to MessageResponseDto
+	messageResponse := &dto.MessageResponseDto{
+		MsgId:     msg.ID.Hex(),
+		ChannelId: msg.ChannelID.Hex(),
+		FromId:    msg.FromID.Hex(),
+		Content:   msg.Content,
+		MsgType:   string(msg.MsgType),
+		MsgSeq:    msg.MsgSeq,
+		Status:    string(msg.Status),
+		IsDelete:  msg.IsDelete,
+		CreatedAt: msg.CreatedAt.Format(time.RFC3339),
+	}
+	if msg.RepliedToMsgID != primitive.NilObjectID {
+		messageResponse.RepliedToMsgId = msg.RepliedToMsgID.Hex()
+	}
 
-	c.JSON(http.StatusOK, msg)
+	// Broadcast update_message
+	memberIds := mc.messageService.GetMemberIds(messageResponse.ChannelId)
+	for _, memberId := range memberIds {
+		mc.hub.Notify(memberId, websocket.EventUpdatedMessage, messageResponse)
+	}
+
+	c.JSON(http.StatusOK, messageResponse)
 }
 
 // DELETE /api/messages/:id/recall
@@ -91,14 +130,19 @@ func (mc *MessageController) RecallMessage(c *gin.Context) {
 	msgId := c.Param("message-id")
 	userId := c.GetString("user-id")
 
-	ok := mc.messageService.RecallMessage(msgId, userId)
-	if !ok {
+	msg := mc.messageService.RecallMessage(msgId, userId)
+	if msg == nil {
 		response.ErrorResponse(c, response.ErrCodeDeleteFailed)
 		return
 	}
 
-	// Có thể thêm event Broadcast recall_message nếu cần
-	response.SuccessResponse(c, response.ErrCodeSuccess, gin.H{"delete": true})
+	// Broadcast recall_message
+	memberIds := mc.messageService.GetMemberIds(msg.ChannelId)
+	for _, memberId := range memberIds {
+		mc.hub.Notify(memberId, websocket.EventRecallMessage, msg)
+	}
+
+	response.SuccessResponse(c, response.ErrCodeSuccess, gin.H{"msg": "Recalled msg successfully"})
 }
 
 // POST /api/messages/:id/hide
