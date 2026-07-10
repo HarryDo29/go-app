@@ -32,6 +32,15 @@ func NewMessageController(
 }
 
 // POST /api/messages
+// CreateMessage godoc
+// @Summary      Create message
+// @Description  Create a new message in a channel
+// @Tags         message
+// @Accept       json
+// @Produce      json
+// @Param        req body dto.CreateMessageDto true "Message Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /message [post]
 func (mc *MessageController) CreateMessage(c *gin.Context) {
 	var msgDto dto.CreateMessageDto
 	if err := c.ShouldBindJSON(&msgDto); err != nil {
@@ -76,6 +85,16 @@ func (mc *MessageController) CreateMessage(c *gin.Context) {
 }
 
 // PUT /api/messages/:id
+// UpdateMessage godoc
+// @Summary      Update message
+// @Description  Update message content
+// @Tags         message
+// @Accept       json
+// @Produce      json
+// @Param        message-id path string true "Message ID"
+// @Param        req body dto.UpdateMessageDto true "Update Message Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /message/{message-id} [put]
 func (mc *MessageController) UpdateMessage(c *gin.Context) {
 	msgId := c.Param("message-id")
 	if msgId == "" {
@@ -126,6 +145,14 @@ func (mc *MessageController) UpdateMessage(c *gin.Context) {
 }
 
 // DELETE /api/messages/:id/recall
+// RecallMessage godoc
+// @Summary      Recall message
+// @Description  Recall a message
+// @Tags         message
+// @Produce      json
+// @Param        message-id path string true "Message ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /message/{message-id}/recall [delete]
 func (mc *MessageController) RecallMessage(c *gin.Context) {
 	msgId := c.Param("message-id")
 	userId := c.GetString("user-id")
@@ -146,6 +173,15 @@ func (mc *MessageController) RecallMessage(c *gin.Context) {
 }
 
 // POST /api/messages/:id/hide
+// HideMessageForMe godoc
+// @Summary      Hide message
+// @Description  Hide a message for current user
+// @Tags         message
+// @Produce      json
+// @Param        message-id path string true "Message ID"
+// @Param        channel_id query string true "Channel ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /message/{message-id}/hide [post]
 func (mc *MessageController) HideMessageForMe(c *gin.Context) {
 	msgId := c.Param("message-id")
 	userId := c.GetString("user-id")
@@ -167,6 +203,15 @@ func (mc *MessageController) HideMessageForMe(c *gin.Context) {
 }
 
 // DELETE /api/channels/:channelId/history
+// DeleteChatHistory godoc
+// @Summary      Delete chat history
+// @Description  Delete chat history in a channel up to a sequence
+// @Tags         message
+// @Produce      json
+// @Param        channel-id path string true "Channel ID"
+// @Param        up_to_seq query string false "Up To Sequence"
+// @Success      200 {object} map[string]interface{}
+// @Router       /channel/{channel-id}/history [delete]
 func (mc *MessageController) DeleteChatHistory(c *gin.Context) {
 	channelId := c.Param("channel-id")
 	userId := c.GetString("user-id")
@@ -184,6 +229,14 @@ func (mc *MessageController) DeleteChatHistory(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, gin.H{"message": "success"})
 }
 
+// GetMessageByID godoc
+// @Summary      Get message by ID
+// @Description  Get a single message by ID
+// @Tags         message
+// @Produce      json
+// @Param        message-id path string true "Message ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /message/{message-id} [get]
 func (mc *MessageController) GetMessageByID(c *gin.Context) {
 	msgId := c.Param("message-id")
 
@@ -202,6 +255,16 @@ func (mc *MessageController) GetMessageByID(c *gin.Context) {
 }
 
 // GET /api/channels/:channelId/messages
+// GetMessagesByChannel godoc
+// @Summary      Get messages by channel
+// @Description  Get messages in a channel with pagination
+// @Tags         message
+// @Produce      json
+// @Param        channel-id path string true "Channel ID"
+// @Param        limit query string false "Limit"
+// @Param        before_seq query string false "Before Sequence"
+// @Success      200 {object} map[string]interface{}
+// @Router       /channel/{channel-id}/messages [get]
 func (mc *MessageController) GetMessagesByChannel(c *gin.Context) {
 	channelId := c.Param("channel-id")
 	userId := c.GetString("user-id")

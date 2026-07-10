@@ -18,6 +18,15 @@ type ConnectionController struct {
 	hub               IWsHub
 }
 
+// CreateConnection godoc
+// @Summary      Create connection
+// @Description  Create a new connection/friend request
+// @Tags         connection
+// @Accept       json
+// @Produce      json
+// @Param        req body dto.ConnectionDto true "Connection Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /connection [post]
 func (cc *ConnectionController) CreateConnection(c *gin.Context) {
 	var conDto dto.ConnectionDto
 	if err := c.ShouldBindJSON(&conDto); err != nil {
@@ -36,6 +45,15 @@ func (cc *ConnectionController) CreateConnection(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, result.Connection)
 }
 
+// GetConnection godoc
+// @Summary      Get connection details
+// @Description  Get connection details by participants
+// @Tags         connection
+// @Accept       json
+// @Produce      json
+// @Param        req body dto.Participants true "Participants Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /connection/detail [post]
 func (cc *ConnectionController) GetConnection(c *gin.Context) {
 	var participants dto.Participants
 	if err := c.ShouldBindJSON(&participants); err != nil {
@@ -50,6 +68,14 @@ func (cc *ConnectionController) GetConnection(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, connection)
 }
 
+// GetConnectionByUserId godoc
+// @Summary      Get user connections
+// @Description  Get connections for the current user, optionally filtered by status
+// @Tags         connection
+// @Produce      json
+// @Param        status query string false "Connection Status"
+// @Success      200 {object} map[string]interface{}
+// @Router       /connection/user [get]
 func (cc *ConnectionController) GetConnectionByUserId(c *gin.Context) {
 	userId := c.GetString("user-id")
 	status := c.Query("status")
@@ -65,6 +91,15 @@ func (cc *ConnectionController) GetConnectionByUserId(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, connection)
 }
 
+// RespondConnection godoc
+// @Summary      Respond to connection request
+// @Description  Accept or reject a connection request
+// @Tags         connection
+// @Produce      json
+// @Param        connection-id path string true "Connection ID"
+// @Param        status query string true "Status (accepted, rejected)"
+// @Success      200 {object} map[string]interface{}
+// @Router       /connection/{connection-id}/respond [put]
 func (cc *ConnectionController) RespondConnection(c *gin.Context) {
 	connectionId := c.Param("connection-id")
 	if connectionId == "" {
@@ -111,6 +146,14 @@ func (cc *ConnectionController) RespondConnection(c *gin.Context) {
 	response.ErrorResponse(c, response.ErrCodeParamInvalid)
 }
 
+// DeleteConnection godoc
+// @Summary      Delete connection
+// @Description  Delete a connection by ID
+// @Tags         connection
+// @Produce      json
+// @Param        connection-id path string true "Connection ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /connection/{connection-id} [delete]
 func (cc *ConnectionController) DeleteConnection(c *gin.Context) {
 	id := c.Param("connection-id")
 	if id == "" {

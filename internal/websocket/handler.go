@@ -27,7 +27,14 @@ var upgrader = gorilla.Upgrader{
 	},
 }
 
-// HandleWebSocket
+// HandleWebSocket godoc
+// @Summary      WebSocket connection
+// @Description  Upgrade to WebSocket connection
+// @Tags         websocket
+// @Produce      json
+// @Param        connectionId query string true "Connection ID"
+// @Success      101 {string} string "Switching Protocols"
+// @Router       /ws [get]
 func (h *Handler) HandleWebSocket(c *gin.Context) {
 	// get user id from context (AuthMiddleware)
 	userId := c.GetString("user-id")

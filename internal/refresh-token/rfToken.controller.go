@@ -17,6 +17,15 @@ func NewRefreshTokenController(rfTokenService IRefreshTokenService) *RefreshToke
 	}
 }
 
+// CreateRefreshToken godoc
+// @Summary      Create refresh token
+// @Description  Create a new refresh token
+// @Tags         refresh-token
+// @Accept       json
+// @Produce      json
+// @Param        req body dto.CreateTokenDto true "Token Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /rf/refresh [post]
 func (rfc *RefreshTokenController) CreateRefreshToken(c *gin.Context) {
 	var dto dto.CreateTokenDto
 	if err := c.ShouldBindJSON(&dto); err != nil {

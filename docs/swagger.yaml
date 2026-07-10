@@ -1,0 +1,1207 @@
+basePath: /v1/api
+definitions:
+  go-app_internal_dto.ChangePasswordDto:
+    properties:
+      conf_password:
+        type: string
+      new_password:
+        type: string
+      old_password:
+        type: string
+    type: object
+  go-app_internal_dto.ConnectionDto:
+    properties:
+      receive_id:
+        type: string
+      request_id:
+        type: string
+    type: object
+  go-app_internal_dto.CreateChannelMemberDto:
+    properties:
+      channel_id:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+      user_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  go-app_internal_dto.CreateGroupDto:
+    properties:
+      group_name:
+        type: string
+      member_count:
+        description: MemberIds   []string `json:"member_ids" binding:"required"`
+        type: integer
+      owner_id:
+        type: string
+    required:
+    - group_name
+    - member_count
+    - owner_id
+    type: object
+  go-app_internal_dto.CreateMessageDto:
+    properties:
+      channel_id:
+        type: string
+      content:
+        type: string
+      msg_type:
+        type: string
+      replied_to_msg_id:
+        type: string
+    required:
+    - channel_id
+    - content
+    - msg_type
+    type: object
+  go-app_internal_dto.CreateRoleDto:
+    properties:
+      role_name:
+        type: string
+      role_note:
+        type: string
+    type: object
+  go-app_internal_dto.CreateTokenDto:
+    properties:
+      role:
+        type: string
+      userEmail:
+        type: string
+      userId:
+        type: string
+    type: object
+  go-app_internal_dto.ForgetPasswordDto:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  go-app_internal_dto.GeneratePresignedURLReq:
+    properties:
+      content_type:
+        type: string
+      folder:
+        type: string
+      object_name:
+        type: string
+    required:
+    - content_type
+    - object_name
+    type: object
+  go-app_internal_dto.LoginDto:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  go-app_internal_dto.Logout:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  go-app_internal_dto.Participants:
+    properties:
+      participants:
+        items:
+          type: string
+        type: array
+    type: object
+  go-app_internal_dto.RefreshTokenDto:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  go-app_internal_dto.RegisterDto:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  go-app_internal_dto.ResetPasswordDto:
+    properties:
+      confirm_password:
+        type: string
+      new_password:
+        minLength: 6
+        type: string
+    required:
+    - confirm_password
+    - new_password
+    type: object
+  go-app_internal_dto.UpdateChannelDto:
+    properties:
+      last_msg_id:
+        type: string
+      last_msg_seq:
+        type: integer
+      last_msg_time:
+        type: string
+    type: object
+  go-app_internal_dto.UpdateChannelUnreadDto:
+    properties:
+      last_msg_id:
+        type: string
+      last_msg_time:
+        type: string
+      unread:
+        type: integer
+      version:
+        type: integer
+    type: object
+  go-app_internal_dto.UpdateGroupDto:
+    properties:
+      group_name:
+        type: string
+      member_count:
+        type: integer
+      status:
+        $ref: '#/definitions/go-app_internal_schema.GroupStatus'
+    type: object
+  go-app_internal_dto.UpdateMessageDto:
+    properties:
+      content:
+        type: string
+      status:
+        type: string
+    type: object
+  go-app_internal_dto.UpdateUserDto:
+    properties:
+      avatar_url:
+        type: string
+      is_active:
+        type: boolean
+      password:
+        type: string
+      user_name:
+        type: string
+    type: object
+  go-app_internal_dto.VerifyOtpDto:
+    properties:
+      otp:
+        type: string
+    required:
+    - otp
+    type: object
+  go-app_internal_dto.VerifyOtpResetDto:
+    properties:
+      email:
+        type: string
+      otp:
+        type: string
+    required:
+    - email
+    - otp
+    type: object
+  go-app_internal_schema.GroupStatus:
+    enum:
+    - ACTIVE
+    - DELETED
+    type: string
+    x-enum-varnames:
+    - GroupStatusActive
+    - GroupStatusDeleted
+host: localhost:8081
+info:
+  contact: {}
+  description: This is a sample server API for Go App.
+  title: Go App API
+  version: "1.0"
+paths:
+  /auth/change-password:
+    post:
+      consumes:
+      - application/json
+      description: Change user password
+      parameters:
+      - description: Change Password Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.ChangePasswordDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Change password
+      tags:
+      - auth
+  /auth/forget:
+    post:
+      consumes:
+      - application/json
+      description: Send OTP to email for password reset
+      parameters:
+      - description: Forget Password Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.ForgetPasswordDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Forget password
+      tags:
+      - auth
+  /auth/forget/verify:
+    post:
+      consumes:
+      - application/json
+      description: Verify OTP and return reset token
+      parameters:
+      - description: Verify OTP Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.VerifyOtpResetDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Verify forget password OTP
+      tags:
+      - auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return tokens
+      parameters:
+      - description: Login Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.LoginDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: User login
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Invalidate user session/token
+      parameters:
+      - description: Logout Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.Logout'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: User logout
+      tags:
+      - auth
+  /auth/otp:
+    post:
+      consumes:
+      - application/json
+      description: Send OTP to user email
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Send OTP
+      tags:
+      - auth
+  /auth/otp/verify:
+    post:
+      consumes:
+      - application/json
+      description: Validate OTP sent to user email
+      parameters:
+      - description: Verify OTP Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.VerifyOtpDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Validate OTP
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Get new access token using refresh token
+      parameters:
+      - description: Refresh Token Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.RefreshTokenDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Refresh token
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user
+      parameters:
+      - description: Register Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.RegisterDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: User registration
+      tags:
+      - auth
+  /auth/reset:
+    post:
+      consumes:
+      - application/json
+      description: Reset password using reset token
+      parameters:
+      - description: Reset Password Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.ResetPasswordDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Reset password
+      tags:
+      - auth
+  /channel:
+    get:
+      description: Get a list of channels for the current user
+      parameters:
+      - description: Channel Type
+        in: query
+        name: type
+        type: string
+      - description: Updated At (RFC3339)
+        in: query
+        name: updated_at
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get channels
+      tags:
+      - channel
+  /channel/{channel-id}:
+    delete:
+      description: Delete a channel by ID
+      parameters:
+      - description: Channel ID
+        in: path
+        name: channel-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete channel
+      tags:
+      - channel
+    put:
+      consumes:
+      - application/json
+      description: Update channel info
+      parameters:
+      - description: Channel ID
+        in: path
+        name: channel-id
+        required: true
+        type: string
+      - description: Update Channel Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.UpdateChannelDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update channel
+      tags:
+      - channel
+  /channel/{channel-id}/history:
+    delete:
+      description: Delete chat history in a channel up to a sequence
+      parameters:
+      - description: Channel ID
+        in: path
+        name: channel-id
+        required: true
+        type: string
+      - description: Up To Sequence
+        in: query
+        name: up_to_seq
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete chat history
+      tags:
+      - message
+  /channel/{channel-id}/members:
+    get:
+      description: Get a list of members in a specific channel
+      parameters:
+      - description: Channel ID
+        in: path
+        name: channel-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get channel members
+      tags:
+      - channel
+  /channel/{channel-id}/members/count:
+    get:
+      description: Get the number of members in a specific channel
+      parameters:
+      - description: Channel ID
+        in: path
+        name: channel-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get channel member count
+      tags:
+      - channel
+  /channel/{channel-id}/messages:
+    get:
+      description: Get messages in a channel with pagination
+      parameters:
+      - description: Channel ID
+        in: path
+        name: channel-id
+        required: true
+        type: string
+      - description: Limit
+        in: query
+        name: limit
+        type: string
+      - description: Before Sequence
+        in: query
+        name: before_seq
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get messages by channel
+      tags:
+      - message
+  /channel/members:
+    post:
+      consumes:
+      - application/json
+      description: Add one or more members to a channel
+      parameters:
+      - description: Member Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.CreateChannelMemberDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Add member to channel
+      tags:
+      - channel
+  /channel/members/{member-id}:
+    delete:
+      description: Remove a specific member from a channel
+      parameters:
+      - description: Member ID
+        in: path
+        name: member-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Remove member from channel
+      tags:
+      - channel
+  /channel/unreads/{unread-id}:
+    delete:
+      description: Delete a channel unread record
+      parameters:
+      - description: Unread ID
+        in: path
+        name: unread-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete channel unread
+      tags:
+      - channel
+    put:
+      consumes:
+      - application/json
+      description: Update unread message count status
+      parameters:
+      - description: Unread ID
+        in: path
+        name: unread-id
+        required: true
+        type: string
+      - description: Update Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.UpdateChannelUnreadDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update channel unread
+      tags:
+      - channel
+  /channel/unreads/user/{user-id}:
+    get:
+      description: Get unread message counts for a user
+      parameters:
+      - description: User ID
+        in: path
+        name: user-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get channel unreads
+      tags:
+      - channel
+  /connection:
+    post:
+      consumes:
+      - application/json
+      description: Create a new connection/friend request
+      parameters:
+      - description: Connection Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.ConnectionDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create connection
+      tags:
+      - connection
+  /connection/{connection-id}:
+    delete:
+      description: Delete a connection by ID
+      parameters:
+      - description: Connection ID
+        in: path
+        name: connection-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete connection
+      tags:
+      - connection
+  /connection/{connection-id}/respond:
+    put:
+      description: Accept or reject a connection request
+      parameters:
+      - description: Connection ID
+        in: path
+        name: connection-id
+        required: true
+        type: string
+      - description: Status (accepted, rejected)
+        in: query
+        name: status
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Respond to connection request
+      tags:
+      - connection
+  /connection/detail:
+    post:
+      consumes:
+      - application/json
+      description: Get connection details by participants
+      parameters:
+      - description: Participants Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.Participants'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get connection details
+      tags:
+      - connection
+  /connection/user:
+    get:
+      description: Get connections for the current user, optionally filtered by status
+      parameters:
+      - description: Connection Status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get user connections
+      tags:
+      - connection
+  /group:
+    post:
+      consumes:
+      - application/json
+      description: Create a new group along with channel, members, and unreads
+      parameters:
+      - description: Create Group Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.CreateGroupDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create a new group
+      tags:
+      - group
+  /group/{group-id}:
+    delete:
+      description: Delete a group by its ID
+      parameters:
+      - description: Group ID
+        in: path
+        name: group-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete a group
+      tags:
+      - group
+    put:
+      consumes:
+      - application/json
+      description: Update information of an existing group
+      parameters:
+      - description: Group ID
+        in: path
+        name: group-id
+        required: true
+        type: string
+      - description: Update Group Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.UpdateGroupDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update group info
+      tags:
+      - group
+  /message:
+    post:
+      consumes:
+      - application/json
+      description: Create a new message in a channel
+      parameters:
+      - description: Message Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.CreateMessageDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create message
+      tags:
+      - message
+  /message/{message-id}:
+    get:
+      description: Get a single message by ID
+      parameters:
+      - description: Message ID
+        in: path
+        name: message-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get message by ID
+      tags:
+      - message
+    put:
+      consumes:
+      - application/json
+      description: Update message content
+      parameters:
+      - description: Message ID
+        in: path
+        name: message-id
+        required: true
+        type: string
+      - description: Update Message Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.UpdateMessageDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update message
+      tags:
+      - message
+  /message/{message-id}/hide:
+    post:
+      description: Hide a message for current user
+      parameters:
+      - description: Message ID
+        in: path
+        name: message-id
+        required: true
+        type: string
+      - description: Channel ID
+        in: query
+        name: channel_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Hide message
+      tags:
+      - message
+  /message/{message-id}/recall:
+    delete:
+      description: Recall a message
+      parameters:
+      - description: Message ID
+        in: path
+        name: message-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Recall message
+      tags:
+      - message
+  /rf/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Create a new refresh token
+      parameters:
+      - description: Token Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.CreateTokenDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create refresh token
+      tags:
+      - refresh-token
+  /role:
+    get:
+      description: Get a list of all roles
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all roles
+      tags:
+      - role
+    post:
+      consumes:
+      - application/json
+      description: Create a new role
+      parameters:
+      - description: Create Role Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.CreateRoleDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Add new role
+      tags:
+      - role
+  /upload/presigned:
+    post:
+      consumes:
+      - application/json
+      description: Generate a presigned URL for file upload
+      parameters:
+      - description: Presigned URL Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.GeneratePresignedURLReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Generate presigned URL
+      tags:
+      - upload
+  /user:
+    put:
+      consumes:
+      - application/json
+      description: Update current user information
+      parameters:
+      - description: Update User Info
+        in: body
+        name: req
+        required: true
+        schema:
+          $ref: '#/definitions/go-app_internal_dto.UpdateUserDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Update user
+      tags:
+      - user
+  /user/{user-id}:
+    delete:
+      description: Delete user by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: user-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete user
+      tags:
+      - user
+    get:
+      description: Get user information by their ID
+      parameters:
+      - description: User ID
+        in: path
+        name: user-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get user by ID
+      tags:
+      - user
+  /user/me:
+    get:
+      description: Get current authenticated user info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get current user
+      tags:
+      - user
+  /user/search:
+    get:
+      description: Search users by name
+      parameters:
+      - description: Search Keyword
+        in: query
+        name: name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Search users
+      tags:
+      - user
+  /ws:
+    get:
+      description: Upgrade to WebSocket connection
+      parameters:
+      - description: Connection ID
+        in: query
+        name: connectionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+      summary: WebSocket connection
+      tags:
+      - websocket
+swagger: "2.0"

@@ -17,6 +17,15 @@ type GroupController struct {
 	hub          IWsHub
 }
 
+// CreateNewGroup godoc
+// @Summary      Create a new group
+// @Description  Create a new group along with channel, members, and unreads
+// @Tags         group
+// @Accept       json
+// @Produce      json
+// @Param        req body dto.CreateGroupDto true "Create Group Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /group [post]
 func (gc *GroupController) CreateNewGroup(c *gin.Context) {
 	var groupDto dto.CreateGroupDto
 	err := c.ShouldBindJSON(&groupDto)
@@ -36,6 +45,16 @@ func (gc *GroupController) CreateNewGroup(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, result)
 }
 
+// UpdateGroupInfo godoc
+// @Summary      Update group info
+// @Description  Update information of an existing group
+// @Tags         group
+// @Accept       json
+// @Produce      json
+// @Param        group-id path string true "Group ID"
+// @Param        req body dto.UpdateGroupDto true "Update Group Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /group/{group-id} [put]
 func (gc *GroupController) UpdateGroupInfo(c *gin.Context) {
 	var groupId = c.Param("group-id")
 	var updateDto dto.UpdateGroupDto
@@ -52,6 +71,14 @@ func (gc *GroupController) UpdateGroupInfo(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, group)
 }
 
+// DeleteGroup godoc
+// @Summary      Delete a group
+// @Description  Delete a group by its ID
+// @Tags         group
+// @Produce      json
+// @Param        group-id path string true "Group ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /group/{group-id} [delete]
 func (gc *GroupController) DeleteGroup(c *gin.Context) {
 	var groupId = c.Param("group-id")
 	result := gc.groupService.DeleteGroup(groupId)

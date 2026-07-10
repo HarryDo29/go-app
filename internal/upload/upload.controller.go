@@ -18,6 +18,15 @@ func NewUploadController(uploadService IUploadService) *UploadController {
 	}
 }
 
+// GeneratePresignedURL godoc
+// @Summary      Generate presigned URL
+// @Description  Generate a presigned URL for file upload
+// @Tags         upload
+// @Accept       json
+// @Produce      json
+// @Param        req body dto.GeneratePresignedURLReq true "Presigned URL Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /upload/presigned [post]
 func (c *UploadController) GeneratePresignedURL(ctx *gin.Context) {
 	var opts dto.GeneratePresignedURLReq
 	if err := ctx.ShouldBindJSON(&opts); err != nil {

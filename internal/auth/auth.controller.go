@@ -23,6 +23,15 @@ func (ac *AuthController) GetResetUserId(token string) string {
 	return ac.authService.GetResetUserId(token)
 }
 
+// Login godoc
+// @Summary      User login
+// @Description  Authenticate user and return tokens
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        req body appDto.LoginDto true "Login Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /auth/login [post]
 func (ac *AuthController) Login(c *gin.Context) {
 	var req appDto.LoginDto
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -37,6 +46,15 @@ func (ac *AuthController) Login(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, result)
 }
 
+// Register godoc
+// @Summary      User registration
+// @Description  Register a new user
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        req body appDto.RegisterDto true "Register Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /auth/register [post]
 func (ac *AuthController) Register(c *gin.Context) {
 	var req appDto.RegisterDto
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -47,6 +65,15 @@ func (ac *AuthController) Register(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, result)
 }
 
+// Logout godoc
+// @Summary      User logout
+// @Description  Invalidate user session/token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        req body appDto.Logout true "Logout Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /auth/logout [post]
 func (ac *AuthController) Logout(c *gin.Context) {
 	userId := c.GetString("user-id")
 	var req appDto.Logout
@@ -61,6 +88,15 @@ func (ac *AuthController) Logout(c *gin.Context) {
 	}
 }
 
+// RefreshToken godoc
+// @Summary      Refresh token
+// @Description  Get new access token using refresh token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        req body appDto.RefreshTokenDto true "Refresh Token Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /auth/refresh [post]
 func (ac *AuthController) RefreshToken(c *gin.Context) {
 	var req appDto.RefreshTokenDto
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -78,6 +114,15 @@ func (ac *AuthController) RefreshToken(c *gin.Context) {
 	})
 }
 
+// ChangePassword godoc
+// @Summary      Change password
+// @Description  Change user password
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        req body appDto.ChangePasswordDto true "Change Password Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /auth/change-password [post]
 func (ac *AuthController) ChangePassword(c *gin.Context) {
 	userId := c.GetString("user-id")
 	var req appDto.ChangePasswordDto
@@ -92,6 +137,15 @@ func (ac *AuthController) ChangePassword(c *gin.Context) {
 	}
 }
 
+// ForgetPassword godoc
+// @Summary      Forget password
+// @Description  Send OTP to email for password reset
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        req body appDto.ForgetPasswordDto true "Forget Password Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /auth/forget [post]
 func (ac *AuthController) ForgetPassword(c *gin.Context) {
 	var req appDto.ForgetPasswordDto
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -105,6 +159,15 @@ func (ac *AuthController) ForgetPassword(c *gin.Context) {
 	}
 }
 
+// VerifyForgetPassword godoc
+// @Summary      Verify forget password OTP
+// @Description  Verify OTP and return reset token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        req body appDto.VerifyOtpResetDto true "Verify OTP Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /auth/forget/verify [post]
 func (ac *AuthController) VerifyForgetPassword(c *gin.Context) {
 	var req appDto.VerifyOtpResetDto
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -119,6 +182,15 @@ func (ac *AuthController) VerifyForgetPassword(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, map[string]string{"reset_token": resetToken})
 }
 
+// ResetPassword godoc
+// @Summary      Reset password
+// @Description  Reset password using reset token
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        req body appDto.ResetPasswordDto true "Reset Password Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /auth/reset [post]
 func (ac *AuthController) ResetPassword(c *gin.Context) {
 	userId := c.GetString("user-id")
 	var req appDto.ResetPasswordDto
@@ -133,6 +205,14 @@ func (ac *AuthController) ResetPassword(c *gin.Context) {
 	}
 }
 
+// SendOtp godoc
+// @Summary      Send OTP
+// @Description  Send OTP to user email
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Success      200 {object} map[string]interface{}
+// @Router       /auth/otp [post]
 func (ac *AuthController) SendOtp(c *gin.Context) {
 	email := c.GetString("email")
 	if result := ac.authService.SendOtp(email); result {
@@ -142,6 +222,15 @@ func (ac *AuthController) SendOtp(c *gin.Context) {
 	}
 }
 
+// ValidateOtp godoc
+// @Summary      Validate OTP
+// @Description  Validate OTP sent to user email
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        req body appDto.VerifyOtpDto true "Verify OTP Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /auth/otp/verify [post]
 func (ac *AuthController) ValidateOtp(c *gin.Context) {
 	userId := c.GetString("user-id")
 	email := c.GetString("email")

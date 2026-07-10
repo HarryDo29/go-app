@@ -27,6 +27,15 @@ func NewChannelController(channelService IChannelService, wsHub IWsHub) *Channel
 }
 
 // ================= Channel Endpoints =================
+// GetChannels godoc
+// @Summary      Get channels
+// @Description  Get a list of channels for the current user
+// @Tags         channel
+// @Produce      json
+// @Param        type query string false "Channel Type"
+// @Param        updated_at query string false "Updated At (RFC3339)"
+// @Success      200 {object} map[string]interface{}
+// @Router       /channel [get]
 func (cc *ChannelController) GetChannels(c *gin.Context) {
 	userId := c.GetString("user-id")
 	if userId == "" {
@@ -60,6 +69,16 @@ func (cc *ChannelController) GetChannels(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, result)
 }
 
+// UpdateChannel godoc
+// @Summary      Update channel
+// @Description  Update channel info
+// @Tags         channel
+// @Accept       json
+// @Produce      json
+// @Param        channel-id path string true "Channel ID"
+// @Param        req body dto.UpdateChannelDto true "Update Channel Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /channel/{channel-id} [put]
 func (cc *ChannelController) UpdateChannel(c *gin.Context) {
 	channelId := c.Param("channel-id")
 	if channelId == "" {
@@ -81,6 +100,14 @@ func (cc *ChannelController) UpdateChannel(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, result)
 }
 
+// DeleteChannel godoc
+// @Summary      Delete channel
+// @Description  Delete a channel by ID
+// @Tags         channel
+// @Produce      json
+// @Param        channel-id path string true "Channel ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /channel/{channel-id} [delete]
 func (cc *ChannelController) DeleteChannel(c *gin.Context) {
 	channelId := c.Param("channel-id")
 	if channelId == "" {
@@ -97,6 +124,15 @@ func (cc *ChannelController) DeleteChannel(c *gin.Context) {
 }
 
 // ================= Member Endpoints =================
+// AddMemberToChannel godoc
+// @Summary      Add member to channel
+// @Description  Add one or more members to a channel
+// @Tags         channel
+// @Accept       json
+// @Produce      json
+// @Param        req body dto.CreateChannelMemberDto true "Member Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /channel/members [post]
 func (cc *ChannelController) AddMemberToChannel(c *gin.Context) {
 	var memberDto dto.CreateChannelMemberDto
 	if err := c.ShouldBindJSON(&memberDto); err != nil {
@@ -151,6 +187,14 @@ func (cc *ChannelController) AddMemberToChannel(c *gin.Context) {
 	})
 }
 
+// RemoveMemberFromChannel godoc
+// @Summary      Remove member from channel
+// @Description  Remove a specific member from a channel
+// @Tags         channel
+// @Produce      json
+// @Param        member-id path string true "Member ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /channel/members/{member-id} [delete]
 func (cc *ChannelController) RemoveMemberFromChannel(c *gin.Context) {
 	memberId := c.Param("member-id")
 	if memberId == "" {
@@ -166,6 +210,14 @@ func (cc *ChannelController) RemoveMemberFromChannel(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, gin.H{"removed": true})
 }
 
+// GetChannelMembers godoc
+// @Summary      Get channel members
+// @Description  Get a list of members in a specific channel
+// @Tags         channel
+// @Produce      json
+// @Param        channel-id path string true "Channel ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /channel/{channel-id}/members [get]
 func (cc *ChannelController) GetChannelMembers(c *gin.Context) {
 	channelId := c.Param("channel-id")
 	if channelId == "" {
@@ -181,6 +233,14 @@ func (cc *ChannelController) GetChannelMembers(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, result)
 }
 
+// GetChannelMemberCount godoc
+// @Summary      Get channel member count
+// @Description  Get the number of members in a specific channel
+// @Tags         channel
+// @Produce      json
+// @Param        channel-id path string true "Channel ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /channel/{channel-id}/members/count [get]
 func (cc *ChannelController) GetChannelMemberCount(c *gin.Context) {
 	channelId := c.Param("channel-id")
 	if channelId == "" {
@@ -193,6 +253,14 @@ func (cc *ChannelController) GetChannelMemberCount(c *gin.Context) {
 }
 
 // ================= Unread Endpoints =================
+// GetChannelUnreads godoc
+// @Summary      Get channel unreads
+// @Description  Get unread message counts for a user
+// @Tags         channel
+// @Produce      json
+// @Param        user-id path string true "User ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /channel/unreads/user/{user-id} [get]
 func (cc *ChannelController) GetChannelUnreads(c *gin.Context) {
 	userId := c.Param("user-id")
 	if userId == "" {
@@ -208,6 +276,16 @@ func (cc *ChannelController) GetChannelUnreads(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, result)
 }
 
+// UpdateChannelUnread godoc
+// @Summary      Update channel unread
+// @Description  Update unread message count status
+// @Tags         channel
+// @Accept       json
+// @Produce      json
+// @Param        unread-id path string true "Unread ID"
+// @Param        req body dto.UpdateChannelUnreadDto true "Update Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /channel/unreads/{unread-id} [put]
 func (cc *ChannelController) UpdateChannelUnread(c *gin.Context) {
 	unreadId := c.Param("unread-id")
 	if unreadId == "" {
@@ -229,6 +307,14 @@ func (cc *ChannelController) UpdateChannelUnread(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, result)
 }
 
+// DeleteChannelUnread godoc
+// @Summary      Delete channel unread
+// @Description  Delete a channel unread record
+// @Tags         channel
+// @Produce      json
+// @Param        unread-id path string true "Unread ID"
+// @Success      200 {object} map[string]interface{}
+// @Router       /channel/unreads/{unread-id} [delete]
 func (cc *ChannelController) DeleteChannelUnread(c *gin.Context) {
 	unreadId := c.Param("unread-id")
 	if unreadId == "" {

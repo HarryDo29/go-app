@@ -3,8 +3,11 @@ package routers
 import (
 	"go-app/global"
 	"go-app/internal/middleware"
+	_ "go-app/docs"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func NewRouter() *gin.Engine {
@@ -49,6 +52,8 @@ func NewRouter() *gin.Engine {
 		RouterGroupApp.Message.InitMessageRouter(MainGroup)
 		RouterGroupApp.Upload.InitUploadRouter(MainGroup)
 	}
+
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	return r
 }

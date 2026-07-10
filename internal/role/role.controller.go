@@ -17,6 +17,15 @@ func NewRoleController(roleService IRoleService) *RoleController {
 	}
 }
 
+// AddNewRole godoc
+// @Summary      Add new role
+// @Description  Create a new role
+// @Tags         role
+// @Accept       json
+// @Produce      json
+// @Param        req body dto.CreateRoleDto true "Create Role Info"
+// @Success      200 {object} map[string]interface{}
+// @Router       /role [post]
 func (rc *RoleController) AddNewRole(c *gin.Context) {
 	var createDto dto.CreateRoleDto
 	if err := c.ShouldBindJSON(&createDto); err != nil {
@@ -32,6 +41,13 @@ func (rc *RoleController) AddNewRole(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, result)
 }
 
+// GetRoles godoc
+// @Summary      Get all roles
+// @Description  Get a list of all roles
+// @Tags         role
+// @Produce      json
+// @Success      200 {object} map[string]interface{}
+// @Router       /role [get]
 func (rc *RoleController) GetRoles(c *gin.Context) {
 	result := rc.roleService.GetAllRole()
 	if len(*result) == 0 {
