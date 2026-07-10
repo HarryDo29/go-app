@@ -94,7 +94,7 @@ func (r *MessageRepo) GetMessagesByChannel(
 
 	filter := bson.M{
 		"channel_id": channelId,
-		"is_delete":  false,
+		// "is_delete":  false,
 	} // set filter
 
 	if beforeSeq > 0 {

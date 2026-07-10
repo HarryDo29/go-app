@@ -29,7 +29,7 @@ type GetTokenHeaderDto struct {
 }
 
 type RefreshTokenDto struct {
-	RefreshToken string `json:"refreshToken" binding:"required"`
+	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
 type LoginDto struct {

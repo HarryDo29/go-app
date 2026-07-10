@@ -132,8 +132,10 @@ func (a *authService) Logout(userId string, logoutDto dto.Logout) bool {
 // RefreshToken implements [IAuthService].
 func (a *authService) RefreshToken(refreshToken string) string {
 	// 1. Verify the refresh token
+	fmt.Println("verify-refresh-token-1")
 	claims, err := a.rfService.VerifyRefreshToken(refreshToken)
 	if err != nil {
+		fmt.Println("err: ", err)
 		return ""
 	}
 

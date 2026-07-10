@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	appDto "go-app/internal/dto"
 	"go-app/pkg/response"
 
@@ -66,6 +67,7 @@ func (ac *AuthController) RefreshToken(c *gin.Context) {
 		response.ErrorResponse(c, response.ErrCodeBodyInvalid)
 		return
 	}
+	fmt.Println("verify-refresh-token")
 	accToken := ac.authService.RefreshToken(req.RefreshToken)
 	if accToken == "" {
 		response.ErrorResponse(c, response.ErrCodeTokenInvalid)

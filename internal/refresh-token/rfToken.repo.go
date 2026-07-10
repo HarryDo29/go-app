@@ -14,7 +14,7 @@ import (
 
 type IRefreshTokenRepo interface {
 	CreateRefreshToken(rf dto.CreateFreshTokenDto) bool
-	GetRefreshToken(userId string) schema.DbRefreshToken
+	GetRefreshTokens(userId string) []schema.DbRefreshToken
 	RemoveRefreshToken(userId string, rfToken string) bool
 }
 
@@ -38,22 +38,27 @@ func (rfp *refreshTokenRepo) CreateRefreshToken(rf dto.CreateFreshTokenDto) bool
 }
 
 // GetRefreshToken implements [IRefreshTokenRepo].
-func (rfp *refreshTokenRepo) GetRefreshToken(userId string) schema.DbRefreshToken {
-	objUserID := utils.ObjectIDFromHex(userId)
-	if objUserID == primitive.NilObjectID {
-		return schema.DbRefreshToken{}
+func (rfp *refreshTokenRepo) GetRefreshTokens(userId string) []schema.DbRefreshToken {
+	userID := utils.ObjectIDFromHex(userId)
+	if userID == primitive.NilObjectID {
+		return nil
 	}
 
-	var token schema.DbRefreshToken
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	var tokens []schema.DbRefreshToken
 	collection := global.Mgo.Database.Collection(schema.CollectionNameRefreshToken)
-	err := collection.FindOne(ctx, bson.M{"user_id": objUserID}).Decode(&token)
-	if err == nil {
-		return token
+	cursor, err := collection.Find(ctx, bson.M{"user_id": userID})
+	if err != nil {
+		return nil
 	}
-	return schema.DbRefreshToken{} // thay cho nil
+	defer cursor.Close(ctx)
+
+	if err = cursor.All(ctx, &tokens); err != nil {
+		return nil
+	}
+	return tokens
 }
 
 // RemoveRefreshToken implements [IRefreshTokenRepo].

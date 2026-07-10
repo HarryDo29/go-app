@@ -31,17 +31,17 @@ func (rfc *RefreshTokenController) CreateRefreshToken(c *gin.Context) {
 	response.SuccessResponse(c, response.ErrCodeSuccess, result)
 }
 
-func (rfc *RefreshTokenController) GetRefreshToken(c *gin.Context) {
-	var dto dto.GetTokenHeaderDto
-	if err := c.ShouldBindHeader(&dto); err != nil {
-		response.ErrorResponse(c, response.ErrCodeParamInvalid)
-		return
-	}
+// func (rfc *RefreshTokenController) GetRefreshToken(c *gin.Context) {
+// 	var dto dto.GetTokenHeaderDto
+// 	if err := c.ShouldBindHeader(&dto); err != nil {
+// 		response.ErrorResponse(c, response.ErrCodeParamInvalid)
+// 		return
+// 	}
 
-	result := rfc.rfTokenService.GetRefreshToken(dto.UserId)
-	if result.ID.IsZero() {
-		response.ErrorResponse(c, response.ErrCodeTokenNotFound) // token ko tồn tại
-		return
-	}
-	response.SuccessResponse(c, response.ErrCodeSuccess, result)
-}
+// 	result := rfc.rfTokenService.GetRefreshTokens(dto.UserId)
+// 	if result.ID.IsZero() {
+// 		response.ErrorResponse(c, response.ErrCodeTokenNotFound) // token ko tồn tại
+// 		return
+// 	}
+// 	response.SuccessResponse(c, response.ErrCodeSuccess, result)
+// }

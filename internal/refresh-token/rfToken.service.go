@@ -2,6 +2,7 @@ package refreshtoken
 
 import (
 	"errors"
+	"fmt"
 	"go-app/global"
 	dto "go-app/internal/dto"
 	"go-app/internal/schema"
@@ -20,7 +21,7 @@ type IRefreshTokenService interface {
 	CreateRefreshToken(createDto dto.CreateTokenDto) dto.TokenResponseDto
 	VerifyAccessToken(accessToken string) (*utils.MyCustomClaims, error)
 	VerifyRefreshToken(refreshToken string) (*utils.MyCustomClaims, error)
-	GetRefreshToken(userId string) schema.DbRefreshToken
+	GetRefreshTokens(userId string) []schema.DbRefreshToken
 	RemoveRefreshToken(userId string, rfToken string) bool
 }
 
@@ -92,27 +93,39 @@ func (r *refreshTokenService) VerifyAccessToken(accessToken string) (*utils.MyCu
 
 // VerifyRefreshToken checks signature, expiry, and that the token still exists in storage.
 func (r *refreshTokenService) VerifyRefreshToken(refreshToken string) (*utils.MyCustomClaims, error) {
+	fmt.Println("normalize-refresh-token")
 	token := normalizeToken(refreshToken)
 	if token == "" {
 		return nil, errors.New("refresh token is empty")
 	}
 
+	fmt.Println("verify-refresh-token-2")
 	claims, err := utils.VerifyJWT(token, rfTokenOption)
 	if err != nil {
 		return nil, err
 	}
 
-	storedToken := r.rfTokenRepo.GetRefreshToken(claims.UserId)
-	if storedToken.ID.IsZero() || storedToken.Token != token {
-		return nil, errors.New("refresh token is invalid or has been revoked")
+	fmt.Println("check-refresh-token-in-db")
+	storedTokens := r.rfTokenRepo.GetRefreshTokens(claims.UserId)
+
+	// Kiểm tra xem token gửi lên có nằm trong danh sách các token hợp lệ của user trong DB không
+	isValid := false
+	for _, storedToken := range storedTokens {
+		if storedToken.Token == token {
+			isValid = true
+			break
+		}
 	}
 
+	if !isValid {
+		return nil, errors.New("refresh token is invalid or has been revoked")
+	}
 	return claims, nil
 }
 
-// GetRefreshToken implements [IRefreshTokenService].
-func (r *refreshTokenService) GetRefreshToken(userId string) schema.DbRefreshToken {
-	return r.rfTokenRepo.GetRefreshToken(userId)
+// GetRefreshTokens implements [IRefreshTokenService].
+func (r *refreshTokenService) GetRefreshTokens(userId string) []schema.DbRefreshToken {
+	return r.rfTokenRepo.GetRefreshTokens(userId)
 }
 
 // RemoveRefreshToken implements [IRefreshTokenService].

@@ -195,6 +195,7 @@ func (s *MessageService) RecallMessage(msgId string, userId string) *dto.Message
 		Status:         string(existing.Status),
 		IsDelete:       true,
 		RepliedToMsgId: existing.RepliedToMsgID.Hex(),
+		CreatedAt:      existing.CreatedAt.Format(time.RFC3339),
 	}
 }
 
@@ -402,10 +403,10 @@ func (s *MessageService) GetMessagesByChannel(
 		if msg.MsgSeq <= userOffset {
 			continue
 		}
-		// Bỏ qua nếu message đã bị user xóa rời rạc
-		if deletedMsgIDs[msg.ID] {
-			continue
-		}
+		// // Bỏ qua nếu message đã bị user xóa rời rạc
+		// if deletedMsgIDs[msg.ID] {
+		// 	continue
+		// }
 		filtered = append(filtered, dto.MessageResponseDto{
 			MsgId:          msg.ID.Hex(),
 			ChannelId:      msg.ChannelID.Hex(),
