@@ -6,7 +6,7 @@ services:
     container_name: go-app-redis
     restart: unless-stopped
     environment:
-      - REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     ports:
       - "6379:6379"
     command:
@@ -43,7 +43,6 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
-      - ./init/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     networks:
       - go-app-network
     healthcheck:
