@@ -37,8 +37,6 @@ services:
     container_name: go-app-mongodb
     restart: always
     environment:
-      # MONGO_INITDB_ROOT_USERNAME: root
-      # MONGO_INITDB_ROOT_PASSWORD: password
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
     ports:
@@ -69,13 +67,11 @@ services:
       - --console-address
       - ":9001"
     ports:
-      # - "9000:9000" # S3 API
+      - "9000:9000" # S3 API
       - "9001:9001" # Web Console
     environment:
-      MINIO_ROOT_USER: root
-      MINIO_ROOT_PASSWORD: password
-      # MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      # MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - minio_data:/data
     networks:
