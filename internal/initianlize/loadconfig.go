@@ -3,6 +3,7 @@ package initianlize
 import (
 	"fmt"
 	"go-app/global"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -27,23 +28,26 @@ type Config struct {
 }
 
 func LoadConfig() {
-	viper := viper.New()
-	viper.AddConfigPath("./config")
-	viper.SetConfigName("local")
-	viper.SetConfigType("yaml")
+	v := viper.New()
+	v.AddConfigPath("./config")
+	v.SetConfigName("local")
+	v.SetConfigType("yaml")
+
+	// Đọc biến môi trường (Environment Variables)
+	v.AutomaticEnv()
+	// Map dấu . sang _ (vd: server.port -> SERVER_PORT)
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	// read configuration
-	err := viper.ReadInConfig()
+	err := v.ReadInConfig()
 	if err != nil {
-		panic(fmt.Errorf("error reading config: %s\n", err))
+		// Bỏ qua lỗi nếu không tìm thấy file config (khi chạy trên docker/portainer)
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			panic(fmt.Errorf("error reading config: %s\n", err))
+		}
 	}
 
-	// read data
-	// fmt.Printf("Server port: %d\n", viper.GetInt("server.port"))
-
-	if err = viper.Unmarshal(&global.Config); err != nil {
+	if err = v.Unmarshal(&global.Config); err != nil {
 		fmt.Printf("error unmarshalling config: %s\n", err)
 	}
-
-	// fmt.Println("Config Port: ", global.Config.Server.Port)
 }

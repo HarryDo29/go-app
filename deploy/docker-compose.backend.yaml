@@ -1,0 +1,65 @@
+services:
+  backend:
+    image: ghcr.io/harrydo29/go-app:latest
+    container_name: go-app-backend
+    restart: unless-stopped
+
+    environment:
+      # --- SERVER ---
+      SERVER_MODE: "production"
+      SERVER_PORT: "8080"
+
+      # --- MONGO ---
+      MONGO_URI: "mongodb://go_app_be:go_app_be_29@#@168.144.107.179:27017/go-app"
+      MONGO_USER: "go_app_be"
+      MONGO_PASSWORD: "go_app_be_29@#"
+      MONGO_HOST: "168.144.107.179"
+      MONGO_PORT: "27017"
+      MONGO_DBNAME: "go-app"
+
+      # --- REDIS ---
+      REDIS_HOST: "168.144.107.179"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: "redis-@#29"
+      REDIS_DB: "0"
+      REDIS_POOL: "10"
+
+      # --- MINIO ---
+      MINIO_ENDPOINT: "168.144.107.179:9000"
+      MINIO_ACCESSKEY: "minio-admin"
+      MINIO_SECRETKEY: "minio-@#29"
+      MINIO_USESSL: "false"
+
+      # --- SECURITY ---
+      SECURITY_JWT_ACCESS-SECRET: "access-my-secret-key"
+      SECURITY_JWT_ACCESS-EXPIRATION: "15m"
+      SECURITY_JWT_REFRESH-SECRET: "refresh-my-secret-key"
+      SECURITY_JWT_REFRESH-EXPIRATION: "720h"
+      SECURITY_JWT_RESET-PASSWORD-SECRET: "reset-password-my-secret-key"
+      SECURITY_JWT_RESET-PASSWORD-EXPIRATION: "1m"
+
+      # --- LOG ---
+      LOG_LEVEL: "debug"
+      LOG_FILENAME: "./log/prod/log.txt"
+      LOG_MAXSIZE: "10"
+      LOG_MAXBACKUPS: "3"
+      LOG_MAXAGE: "28"
+      LOG_COMPRESS: "true"
+
+      # --- RATELIMIT ---
+      RATELIMIT_LIMIT: "5"
+      RATELIMIT_INTERVAL: "10s"
+      RATELIMIT_BURST: "100"
+
+      # --- CORS ---
+      CORS_ALLOWORIGINS: "http://localhost:3000,http://localhost:5173"
+    ports:
+      - ":8080:8080"
+
+    networks:
+      - go-app-network
+
+networks:
+  go-app-network:
+    external: true
+    name: go-app-network

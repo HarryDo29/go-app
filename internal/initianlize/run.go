@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go-app/global"
 	"go-app/internal/websocket"
+	"strconv"
 	"time"
 
 	"github.com/patrickmn/go-cache"
@@ -30,5 +31,5 @@ func Run() {
 	go global.WsHub.Run()
 	// router
 	r := InitRouter()
-	r.Run(":8081")
+	r.Run(":" + strconv.Itoa(global.Config.Server.Port))
 }
