@@ -35,8 +35,8 @@ func LoadConfig() {
 
 	// Đọc biến môi trường (Environment Variables)
 	v.AutomaticEnv()
-	// Map dấu . sang _ (vd: server.port -> SERVER_PORT)
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	// Map dấu . và dấu - sang _ (vd: server.port -> SERVER_PORT, access-secret -> ACCESS_SECRET)
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 
 	// Khai báo sẵn các key để Viper có thể map biến môi trường khi không có file config (như trên Portainer)
 	envKeys := []string{
