@@ -23,4 +23,5 @@ func InitMinio() {
 	}
 
 	global.Minio = client
+	global.Logger.Info("Initialize Minio successfully!")
 }

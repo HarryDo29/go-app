@@ -2,7 +2,6 @@ package initianlize
 
 import (
 	"context"
-	"fmt"
 	"go-app/global"
 	_ "go-app/internal/schema"
 	"time"
@@ -10,9 +9,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.uber.org/zap"
 )
 
-func InitMongoDB() (*global.MongoDB, error) {
+func InitMongoDB() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -24,12 +24,14 @@ func InitMongoDB() (*global.MongoDB, error) {
 	// kết nối với mongodb
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		return nil, fmt.Errorf("connect mongodb failed: %w", err)
+		global.Logger.Error("Init MongoDB connection failed: ", zap.Error(err))
+		panic(err)
 	}
 
 	// kiểm tra kết nối với mongodb
 	if err := client.Ping(ctx, nil); err != nil {
-		return nil, fmt.Errorf("ping mongodb failed: %w", err)
+		global.Logger.Error("Ping MongoDB failed: ", zap.Error(err))
+		panic(err)
 	}
 	// chọn database
 	db := client.Database(m.Database)
@@ -51,10 +53,15 @@ func InitMongoDB() (*global.MongoDB, error) {
 		for _, name := range global.MongoCollectionsToCreate {
 			if !existing[name] {
 				// Tạo mới collection một cách tường minh
-				_ = db.CreateCollection(ctx, name)
+				err = db.CreateCollection(ctx, name)
+				if err != nil {
+					global.Logger.Error("Create MongoDB collection failed: ", zap.String("collection", name), zap.Error(err))
+				}
 			}
 		}
+	} else {
+		global.Logger.Error("List MongoDB collection names failed: ", zap.Error(err))
 	}
 
-	return global.Mgo, nil
+	global.Logger.Info("Init MongoDB connection success")
 }

@@ -83,12 +83,9 @@ func main() {
 	}
 
 	initianlize.LoadConfig()
-	mgo, err := initianlize.InitMongoDB()
-	if err != nil {
-		log.Fatalf("connect mongodb: %v", err)
-	}
+	initianlize.InitMongoDB()
 	defer func() {
-		_ = mgo.Client.Disconnect(context.Background())
+		_ = global.Mgo.Client.Disconnect(context.Background())
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)

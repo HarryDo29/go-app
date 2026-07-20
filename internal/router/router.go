@@ -12,6 +12,7 @@ import (
 
 func NewRouter() *gin.Engine {
 	var r *gin.Engine
+	global.Logger.Info("Apply router")
 
 	if global.Config.Server.Mode == "dev" {
 		gin.SetMode(gin.DebugMode)
