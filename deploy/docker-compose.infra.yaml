@@ -84,4 +84,9 @@ volumes:
   minio_data:
     driver: local
 
+networks:
+  go-app-network:
+    name: go-app-network
+    driver: bridge
+
 
