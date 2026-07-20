@@ -1,4 +1,4 @@
-name: Build backend image
+name: Build Go Backend Chat App image
 
 on:
   push:
