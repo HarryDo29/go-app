@@ -10,6 +10,7 @@ type Config struct {
 	Logger    Logger    `mapstructure:"logger"`
 	Minio     Minio     `mapstructure:"minio"`
 	RateLimit RateLimit `mapstructure:"ratelimit"`
+	Cors      Cors      `mapstructure:"cors"`
 }
 
 // Server config
@@ -80,4 +81,8 @@ type Minio struct {
 	AccessKey string `mapstructure:"accessKey"`
 	SecretKey string `mapstructure:"secretKey"`
 	UseSSL    bool   `mapstructure:"useSSL"`
+}
+
+type Cors struct {
+	AllowOrigins []string `mapstructure:"allowOrigins"`
 }

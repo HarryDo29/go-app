@@ -1,9 +1,9 @@
 package routers
 
 import (
+	_ "go-app/docs"
 	"go-app/global"
 	"go-app/internal/middleware"
-	_ "go-app/docs"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -28,11 +28,11 @@ func NewRouter() *gin.Engine {
 	r.Use(middleware.NewRateLimitMiddleware().Handler()) // limiter global
 
 	// router group
-	userRouter := RouterGroupApp.User
-	authRouter := RouterGroupApp.Auth
-	rfRouter := RouterGroupApp.Rf
-	wsRouter := RouterGroupApp.Ws
-	roleRouter := RouterGroupApp.Role
+	// userRouter := RouterGroupApp.User
+	// authRouter := RouterGroupApp.Auth
+	// rfRouter := RouterGroupApp.Rf
+	// wsRouter := RouterGroupApp.Ws
+	// roleRouter := RouterGroupApp.Role
 
 	MainGroup := r.Group("/v1/api")
 	{
@@ -41,11 +41,11 @@ func NewRouter() *gin.Engine {
 		}) // track monitor
 	}
 	{
-		userRouter.InitUserRouter(MainGroup)
-		authRouter.InitAuthRouter(MainGroup)
-		rfRouter.InitRfRouter(MainGroup)
-		wsRouter.InitWebSocketRouter(MainGroup)
-		roleRouter.Role.InitRoleRouter(MainGroup)
+		RouterGroupApp.User.InitUserRouter(MainGroup)
+		RouterGroupApp.Auth.InitAuthRouter(MainGroup)
+		RouterGroupApp.Rf.InitRfRouter(MainGroup)
+		RouterGroupApp.Ws.InitWebSocketRouter(MainGroup)
+		RouterGroupApp.Role.InitRoleRouter(MainGroup)
 		RouterGroupApp.Channel.InitChannelRouter(MainGroup)
 		RouterGroupApp.Connection.InitConnectionRouter(MainGroup)
 		RouterGroupApp.Group.InitGroupRouter(MainGroup)

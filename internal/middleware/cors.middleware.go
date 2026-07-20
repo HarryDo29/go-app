@@ -3,6 +3,8 @@ package middleware
 import (
 	"time"
 
+	"go-app/global"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -11,10 +13,7 @@ func CorsMiddleware() gin.HandlerFunc {
 	// sử dụng thư viện gin-contrib/cors
 	return cors.New(cors.Config{
 		// chỉ cho phép các origin sau truy cập
-		AllowOrigins: []string{
-			"http://localhost:3000",
-			"http://localhost:5173",
-		},
+		AllowOrigins: global.Config.Cors.AllowOrigins,
 		// chỉ cho phép các method
 		AllowMethods: []string{
 			"GET",

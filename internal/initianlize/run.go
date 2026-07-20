@@ -17,8 +17,6 @@ func Run() {
 	// init log
 	InitLogger()
 	global.Logger.Info("Logger initialized ...", zap.String("ok", "log"))
-	// mysql
-	// InitMySql()
 	// mongo
 	InitMongoDB()
 	// redis
@@ -34,4 +32,3 @@ func Run() {
 	r := InitRouter()
 	r.Run(":8081")
 }
-
