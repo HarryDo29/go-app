@@ -3,13 +3,13 @@ name: Build backend image
 on:
   push:
     branches:
-      - main
+      - master
     paths:
       - "**/*.go"
       - "go.mod"
       - "go.sum"
       - "Dockerfile"
-      - ".github/workflows/backend-image.yml"
+      - ".github/workflows/go-app-image.yml"
 
   workflow_dispatch:
 
