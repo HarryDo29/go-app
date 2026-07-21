@@ -35,7 +35,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.ChangePasswordDto"
+                            "$ref": "#/definitions/dto.ChangePasswordDto"
                         }
                     }
                 ],
@@ -70,7 +70,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.ForgetPasswordDto"
+                            "$ref": "#/definitions/dto.ForgetPasswordDto"
                         }
                     }
                 ],
@@ -105,7 +105,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.VerifyOtpResetDto"
+                            "$ref": "#/definitions/dto.VerifyOtpResetDto"
                         }
                     }
                 ],
@@ -140,7 +140,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.LoginDto"
+                            "$ref": "#/definitions/dto.LoginDto"
                         }
                     }
                 ],
@@ -175,7 +175,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.Logout"
+                            "$ref": "#/definitions/dto.Logout"
                         }
                     }
                 ],
@@ -234,7 +234,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.VerifyOtpDto"
+                            "$ref": "#/definitions/dto.VerifyOtpDto"
                         }
                     }
                 ],
@@ -269,7 +269,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.RefreshTokenDto"
+                            "$ref": "#/definitions/dto.RefreshTokenDto"
                         }
                     }
                 ],
@@ -304,7 +304,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.RegisterDto"
+                            "$ref": "#/definitions/dto.RegisterDto"
                         }
                     }
                 ],
@@ -339,7 +339,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.ResetPasswordDto"
+                            "$ref": "#/definitions/dto.ResetPasswordDto"
                         }
                     }
                 ],
@@ -409,7 +409,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.CreateChannelMemberDto"
+                            "$ref": "#/definitions/dto.CreateChannelMemberDto"
                         }
                     }
                 ],
@@ -511,7 +511,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.UpdateChannelUnreadDto"
+                            "$ref": "#/definitions/dto.UpdateChannelUnreadDto"
                         }
                     }
                 ],
@@ -581,7 +581,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.UpdateChannelDto"
+                            "$ref": "#/definitions/dto.UpdateChannelDto"
                         }
                     }
                 ],
@@ -782,7 +782,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.ConnectionDto"
+                            "$ref": "#/definitions/dto.ConnectionDto"
                         }
                     }
                 ],
@@ -817,7 +817,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.Participants"
+                            "$ref": "#/definitions/dto.Participants"
                         }
                     }
                 ],
@@ -948,7 +948,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.CreateGroupDto"
+                            "$ref": "#/definitions/dto.CreateGroupDto"
                         }
                     }
                 ],
@@ -990,7 +990,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.UpdateGroupDto"
+                            "$ref": "#/definitions/dto.UpdateGroupDto"
                         }
                     }
                 ],
@@ -1053,7 +1053,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.CreateMessageDto"
+                            "$ref": "#/definitions/dto.CreateMessageDto"
                         }
                     }
                 ],
@@ -1123,7 +1123,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.UpdateMessageDto"
+                            "$ref": "#/definitions/dto.UpdateMessageDto"
                         }
                     }
                 ],
@@ -1225,7 +1225,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.CreateTokenDto"
+                            "$ref": "#/definitions/dto.CreateTokenDto"
                         }
                     }
                 ],
@@ -1279,7 +1279,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.CreateRoleDto"
+                            "$ref": "#/definitions/dto.CreateRoleDto"
                         }
                     }
                 ],
@@ -1314,7 +1314,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.GeneratePresignedURLReq"
+                            "$ref": "#/definitions/dto.GeneratePresignedURLReq"
                         }
                     }
                 ],
@@ -1349,7 +1349,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/go-app_internal_dto.UpdateUserDto"
+                            "$ref": "#/definitions/dto.UpdateUserDto"
                         }
                     }
                 ],
@@ -1503,7 +1503,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "go-app_internal_dto.ChangePasswordDto": {
+        "dto.ChangePasswordDto": {
             "type": "object",
             "properties": {
                 "conf_password": {
@@ -1517,7 +1517,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.ConnectionDto": {
+        "dto.ConnectionDto": {
             "type": "object",
             "properties": {
                 "receive_id": {
@@ -1528,7 +1528,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.CreateChannelMemberDto": {
+        "dto.CreateChannelMemberDto": {
             "type": "object",
             "properties": {
                 "channel_id": {
@@ -1548,7 +1548,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.CreateGroupDto": {
+        "dto.CreateGroupDto": {
             "type": "object",
             "required": [
                 "group_name",
@@ -1568,7 +1568,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.CreateMessageDto": {
+        "dto.CreateMessageDto": {
             "type": "object",
             "required": [
                 "channel_id",
@@ -1590,7 +1590,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.CreateRoleDto": {
+        "dto.CreateRoleDto": {
             "type": "object",
             "properties": {
                 "role_name": {
@@ -1601,7 +1601,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.CreateTokenDto": {
+        "dto.CreateTokenDto": {
             "type": "object",
             "properties": {
                 "role": {
@@ -1615,7 +1615,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.ForgetPasswordDto": {
+        "dto.ForgetPasswordDto": {
             "type": "object",
             "required": [
                 "email"
@@ -1626,7 +1626,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.GeneratePresignedURLReq": {
+        "dto.GeneratePresignedURLReq": {
             "type": "object",
             "required": [
                 "content_type",
@@ -1644,7 +1644,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.LoginDto": {
+        "dto.LoginDto": {
             "type": "object",
             "properties": {
                 "email": {
@@ -1655,7 +1655,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.Logout": {
+        "dto.Logout": {
             "type": "object",
             "properties": {
                 "refresh_token": {
@@ -1663,7 +1663,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.Participants": {
+        "dto.Participants": {
             "type": "object",
             "properties": {
                 "participants": {
@@ -1674,7 +1674,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.RefreshTokenDto": {
+        "dto.RefreshTokenDto": {
             "type": "object",
             "required": [
                 "refresh_token"
@@ -1685,7 +1685,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.RegisterDto": {
+        "dto.RegisterDto": {
             "type": "object",
             "properties": {
                 "email": {
@@ -1699,7 +1699,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.ResetPasswordDto": {
+        "dto.ResetPasswordDto": {
             "type": "object",
             "required": [
                 "confirm_password",
@@ -1715,7 +1715,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.UpdateChannelDto": {
+        "dto.UpdateChannelDto": {
             "type": "object",
             "properties": {
                 "last_msg_id": {
@@ -1729,7 +1729,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.UpdateChannelUnreadDto": {
+        "dto.UpdateChannelUnreadDto": {
             "type": "object",
             "properties": {
                 "last_msg_id": {
@@ -1746,7 +1746,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.UpdateGroupDto": {
+        "dto.UpdateGroupDto": {
             "type": "object",
             "properties": {
                 "group_name": {
@@ -1756,11 +1756,11 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "status": {
-                    "$ref": "#/definitions/go-app_internal_schema.GroupStatus"
+                    "$ref": "#/definitions/schema.GroupStatus"
                 }
             }
         },
-        "go-app_internal_dto.UpdateMessageDto": {
+        "dto.UpdateMessageDto": {
             "type": "object",
             "properties": {
                 "content": {
@@ -1771,7 +1771,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.UpdateUserDto": {
+        "dto.UpdateUserDto": {
             "type": "object",
             "properties": {
                 "avatar_url": {
@@ -1788,7 +1788,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.VerifyOtpDto": {
+        "dto.VerifyOtpDto": {
             "type": "object",
             "required": [
                 "otp"
@@ -1799,7 +1799,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_dto.VerifyOtpResetDto": {
+        "dto.VerifyOtpResetDto": {
             "type": "object",
             "required": [
                 "email",
@@ -1814,7 +1814,7 @@ const docTemplate = `{
                 }
             }
         },
-        "go-app_internal_schema.GroupStatus": {
+        "schema.GroupStatus": {
             "type": "string",
             "enum": [
                 "ACTIVE",
@@ -1831,7 +1831,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8081",
+	Host:             "api.chat-app.website",
 	BasePath:         "/v1/api",
 	Schemes:          []string{},
 	Title:            "Go App API",

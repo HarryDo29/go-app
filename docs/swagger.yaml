@@ -1,6 +1,6 @@
 basePath: /v1/api
 definitions:
-  go-app_internal_dto.ChangePasswordDto:
+  dto.ChangePasswordDto:
     properties:
       conf_password:
         type: string
@@ -9,14 +9,14 @@ definitions:
       old_password:
         type: string
     type: object
-  go-app_internal_dto.ConnectionDto:
+  dto.ConnectionDto:
     properties:
       receive_id:
         type: string
       request_id:
         type: string
     type: object
-  go-app_internal_dto.CreateChannelMemberDto:
+  dto.CreateChannelMemberDto:
     properties:
       channel_id:
         type: string
@@ -29,7 +29,7 @@ definitions:
           type: string
         type: array
     type: object
-  go-app_internal_dto.CreateGroupDto:
+  dto.CreateGroupDto:
     properties:
       group_name:
         type: string
@@ -43,7 +43,7 @@ definitions:
     - member_count
     - owner_id
     type: object
-  go-app_internal_dto.CreateMessageDto:
+  dto.CreateMessageDto:
     properties:
       channel_id:
         type: string
@@ -58,14 +58,14 @@ definitions:
     - content
     - msg_type
     type: object
-  go-app_internal_dto.CreateRoleDto:
+  dto.CreateRoleDto:
     properties:
       role_name:
         type: string
       role_note:
         type: string
     type: object
-  go-app_internal_dto.CreateTokenDto:
+  dto.CreateTokenDto:
     properties:
       role:
         type: string
@@ -74,14 +74,14 @@ definitions:
       userId:
         type: string
     type: object
-  go-app_internal_dto.ForgetPasswordDto:
+  dto.ForgetPasswordDto:
     properties:
       email:
         type: string
     required:
     - email
     type: object
-  go-app_internal_dto.GeneratePresignedURLReq:
+  dto.GeneratePresignedURLReq:
     properties:
       content_type:
         type: string
@@ -93,33 +93,33 @@ definitions:
     - content_type
     - object_name
     type: object
-  go-app_internal_dto.LoginDto:
+  dto.LoginDto:
     properties:
       email:
         type: string
       password:
         type: string
     type: object
-  go-app_internal_dto.Logout:
+  dto.Logout:
     properties:
       refresh_token:
         type: string
     type: object
-  go-app_internal_dto.Participants:
+  dto.Participants:
     properties:
       participants:
         items:
           type: string
         type: array
     type: object
-  go-app_internal_dto.RefreshTokenDto:
+  dto.RefreshTokenDto:
     properties:
       refresh_token:
         type: string
     required:
     - refresh_token
     type: object
-  go-app_internal_dto.RegisterDto:
+  dto.RegisterDto:
     properties:
       email:
         type: string
@@ -128,7 +128,7 @@ definitions:
       username:
         type: string
     type: object
-  go-app_internal_dto.ResetPasswordDto:
+  dto.ResetPasswordDto:
     properties:
       confirm_password:
         type: string
@@ -139,7 +139,7 @@ definitions:
     - confirm_password
     - new_password
     type: object
-  go-app_internal_dto.UpdateChannelDto:
+  dto.UpdateChannelDto:
     properties:
       last_msg_id:
         type: string
@@ -148,7 +148,7 @@ definitions:
       last_msg_time:
         type: string
     type: object
-  go-app_internal_dto.UpdateChannelUnreadDto:
+  dto.UpdateChannelUnreadDto:
     properties:
       last_msg_id:
         type: string
@@ -159,23 +159,23 @@ definitions:
       version:
         type: integer
     type: object
-  go-app_internal_dto.UpdateGroupDto:
+  dto.UpdateGroupDto:
     properties:
       group_name:
         type: string
       member_count:
         type: integer
       status:
-        $ref: '#/definitions/go-app_internal_schema.GroupStatus'
+        $ref: '#/definitions/schema.GroupStatus'
     type: object
-  go-app_internal_dto.UpdateMessageDto:
+  dto.UpdateMessageDto:
     properties:
       content:
         type: string
       status:
         type: string
     type: object
-  go-app_internal_dto.UpdateUserDto:
+  dto.UpdateUserDto:
     properties:
       avatar_url:
         type: string
@@ -186,14 +186,14 @@ definitions:
       user_name:
         type: string
     type: object
-  go-app_internal_dto.VerifyOtpDto:
+  dto.VerifyOtpDto:
     properties:
       otp:
         type: string
     required:
     - otp
     type: object
-  go-app_internal_dto.VerifyOtpResetDto:
+  dto.VerifyOtpResetDto:
     properties:
       email:
         type: string
@@ -203,7 +203,7 @@ definitions:
     - email
     - otp
     type: object
-  go-app_internal_schema.GroupStatus:
+  schema.GroupStatus:
     enum:
     - ACTIVE
     - DELETED
@@ -211,7 +211,7 @@ definitions:
     x-enum-varnames:
     - GroupStatusActive
     - GroupStatusDeleted
-host: localhost:8081
+host: api.chat-app.website
 info:
   contact: {}
   description: This is a sample server API for Go App.
@@ -229,7 +229,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.ChangePasswordDto'
+          $ref: '#/definitions/dto.ChangePasswordDto'
       produces:
       - application/json
       responses:
@@ -252,7 +252,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.ForgetPasswordDto'
+          $ref: '#/definitions/dto.ForgetPasswordDto'
       produces:
       - application/json
       responses:
@@ -275,7 +275,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.VerifyOtpResetDto'
+          $ref: '#/definitions/dto.VerifyOtpResetDto'
       produces:
       - application/json
       responses:
@@ -298,7 +298,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.LoginDto'
+          $ref: '#/definitions/dto.LoginDto'
       produces:
       - application/json
       responses:
@@ -321,7 +321,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.Logout'
+          $ref: '#/definitions/dto.Logout'
       produces:
       - application/json
       responses:
@@ -360,7 +360,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.VerifyOtpDto'
+          $ref: '#/definitions/dto.VerifyOtpDto'
       produces:
       - application/json
       responses:
@@ -383,7 +383,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.RefreshTokenDto'
+          $ref: '#/definitions/dto.RefreshTokenDto'
       produces:
       - application/json
       responses:
@@ -406,7 +406,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.RegisterDto'
+          $ref: '#/definitions/dto.RegisterDto'
       produces:
       - application/json
       responses:
@@ -429,7 +429,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.ResetPasswordDto'
+          $ref: '#/definitions/dto.ResetPasswordDto'
       produces:
       - application/json
       responses:
@@ -499,7 +499,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.UpdateChannelDto'
+          $ref: '#/definitions/dto.UpdateChannelDto'
       produces:
       - application/json
       responses:
@@ -614,7 +614,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.CreateChannelMemberDto'
+          $ref: '#/definitions/dto.CreateChannelMemberDto'
       produces:
       - application/json
       responses:
@@ -681,7 +681,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.UpdateChannelUnreadDto'
+          $ref: '#/definitions/dto.UpdateChannelUnreadDto'
       produces:
       - application/json
       responses:
@@ -724,7 +724,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.ConnectionDto'
+          $ref: '#/definitions/dto.ConnectionDto'
       produces:
       - application/json
       responses:
@@ -792,7 +792,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.Participants'
+          $ref: '#/definitions/dto.Participants'
       produces:
       - application/json
       responses:
@@ -834,7 +834,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.CreateGroupDto'
+          $ref: '#/definitions/dto.CreateGroupDto'
       produces:
       - application/json
       responses:
@@ -881,7 +881,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.UpdateGroupDto'
+          $ref: '#/definitions/dto.UpdateGroupDto'
       produces:
       - application/json
       responses:
@@ -904,7 +904,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.CreateMessageDto'
+          $ref: '#/definitions/dto.CreateMessageDto'
       produces:
       - application/json
       responses:
@@ -951,7 +951,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.UpdateMessageDto'
+          $ref: '#/definitions/dto.UpdateMessageDto'
       produces:
       - application/json
       responses:
@@ -1019,7 +1019,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.CreateTokenDto'
+          $ref: '#/definitions/dto.CreateTokenDto'
       produces:
       - application/json
       responses:
@@ -1055,7 +1055,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.CreateRoleDto'
+          $ref: '#/definitions/dto.CreateRoleDto'
       produces:
       - application/json
       responses:
@@ -1078,7 +1078,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.GeneratePresignedURLReq'
+          $ref: '#/definitions/dto.GeneratePresignedURLReq'
       produces:
       - application/json
       responses:
@@ -1101,7 +1101,7 @@ paths:
         name: req
         required: true
         schema:
-          $ref: '#/definitions/go-app_internal_dto.UpdateUserDto'
+          $ref: '#/definitions/dto.UpdateUserDto'
       produces:
       - application/json
       responses:

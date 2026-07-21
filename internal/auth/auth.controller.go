@@ -2,7 +2,7 @@ package auth
 
 import (
 	"fmt"
-	appDto "go-app/internal/dto"
+	"go-app/internal/dto"
 	"go-app/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -29,17 +29,17 @@ func (ac *AuthController) GetResetUserId(token string) string {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        req body appDto.LoginDto true "Login Info"
+// @Param        req body dto.LoginDto true "Login Info"
 // @Success      200 {object} map[string]interface{}
 // @Router       /auth/login [post]
 func (ac *AuthController) Login(c *gin.Context) {
-	var req appDto.LoginDto
+	var req dto.LoginDto
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorResponse(c, response.ErrCodeBodyInvalid)
 		return
 	}
 	result := ac.authService.Login(&req)
-	if result == (appDto.LoginResponseDto{}) {
+	if result == (dto.LoginResponseDto{}) {
 		response.ErrorResponse(c, response.ErrCodeAuthFailed)
 		return
 	}
@@ -52,11 +52,11 @@ func (ac *AuthController) Login(c *gin.Context) {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        req body appDto.RegisterDto true "Register Info"
+// @Param        req body dto.RegisterDto true "Register Info"
 // @Success      200 {object} map[string]interface{}
 // @Router       /auth/register [post]
 func (ac *AuthController) Register(c *gin.Context) {
-	var req appDto.RegisterDto
+	var req dto.RegisterDto
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorResponse(c, response.ErrCodeBodyInvalid)
 		return
@@ -71,12 +71,12 @@ func (ac *AuthController) Register(c *gin.Context) {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        req body appDto.Logout true "Logout Info"
+// @Param        req body dto.Logout true "Logout Info"
 // @Success      200 {object} map[string]interface{}
 // @Router       /auth/logout [post]
 func (ac *AuthController) Logout(c *gin.Context) {
 	userId := c.GetString("user-id")
-	var req appDto.Logout
+	var req dto.Logout
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorResponse(c, response.ErrCodeBodyInvalid)
 		return
@@ -94,11 +94,11 @@ func (ac *AuthController) Logout(c *gin.Context) {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        req body appDto.RefreshTokenDto true "Refresh Token Info"
+// @Param        req body dto.RefreshTokenDto true "Refresh Token Info"
 // @Success      200 {object} map[string]interface{}
 // @Router       /auth/refresh [post]
 func (ac *AuthController) RefreshToken(c *gin.Context) {
-	var req appDto.RefreshTokenDto
+	var req dto.RefreshTokenDto
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorResponse(c, response.ErrCodeBodyInvalid)
 		return
@@ -120,12 +120,12 @@ func (ac *AuthController) RefreshToken(c *gin.Context) {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        req body appDto.ChangePasswordDto true "Change Password Info"
+// @Param        req body dto.ChangePasswordDto true "Change Password Info"
 // @Success      200 {object} map[string]interface{}
 // @Router       /auth/change-password [post]
 func (ac *AuthController) ChangePassword(c *gin.Context) {
 	userId := c.GetString("user-id")
-	var req appDto.ChangePasswordDto
+	var req dto.ChangePasswordDto
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorResponse(c, response.ErrCodeBodyInvalid)
 		return
@@ -143,11 +143,11 @@ func (ac *AuthController) ChangePassword(c *gin.Context) {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        req body appDto.ForgetPasswordDto true "Forget Password Info"
+// @Param        req body dto.ForgetPasswordDto true "Forget Password Info"
 // @Success      200 {object} map[string]interface{}
 // @Router       /auth/forget [post]
 func (ac *AuthController) ForgetPassword(c *gin.Context) {
-	var req appDto.ForgetPasswordDto
+	var req dto.ForgetPasswordDto
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorResponse(c, response.ErrCodeBodyInvalid)
 		return
@@ -165,11 +165,11 @@ func (ac *AuthController) ForgetPassword(c *gin.Context) {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        req body appDto.VerifyOtpResetDto true "Verify OTP Info"
+// @Param        req body dto.VerifyOtpResetDto true "Verify OTP Info"
 // @Success      200 {object} map[string]interface{}
 // @Router       /auth/forget/verify [post]
 func (ac *AuthController) VerifyForgetPassword(c *gin.Context) {
-	var req appDto.VerifyOtpResetDto
+	var req dto.VerifyOtpResetDto
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorResponse(c, response.ErrCodeBodyInvalid)
 		return
@@ -188,12 +188,12 @@ func (ac *AuthController) VerifyForgetPassword(c *gin.Context) {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        req body appDto.ResetPasswordDto true "Reset Password Info"
+// @Param        req body dto.ResetPasswordDto true "Reset Password Info"
 // @Success      200 {object} map[string]interface{}
 // @Router       /auth/reset [post]
 func (ac *AuthController) ResetPassword(c *gin.Context) {
 	userId := c.GetString("user-id")
-	var req appDto.ResetPasswordDto
+	var req dto.ResetPasswordDto
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorResponse(c, response.ErrCodeBodyInvalid)
 		return
@@ -228,13 +228,13 @@ func (ac *AuthController) SendOtp(c *gin.Context) {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        req body appDto.VerifyOtpDto true "Verify OTP Info"
+// @Param        req body dto.VerifyOtpDto true "Verify OTP Info"
 // @Success      200 {object} map[string]interface{}
 // @Router       /auth/otp/verify [post]
 func (ac *AuthController) ValidateOtp(c *gin.Context) {
 	userId := c.GetString("user-id")
 	email := c.GetString("email")
-	var req appDto.VerifyOtpDto
+	var req dto.VerifyOtpDto
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorResponse(c, response.ErrCodeBodyInvalid)
 		return
