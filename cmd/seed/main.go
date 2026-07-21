@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"go-app/global"
-	"go-app/internal/initianlize"
+	initianlize "go-app/internal/initialize"
 	"go-app/internal/schema"
 	"go-app/pkg/utils"
 
@@ -21,6 +21,10 @@ import (
 )
 
 const defaultPassword = "Root123@"
+
+// ─────────────────────────────────────────────
+// Config & helper structs
+// ─────────────────────────────────────────────
 
 type seedConfig struct {
 	users                 int
@@ -48,22 +52,30 @@ type directSeed struct {
 	participants []primitive.ObjectID
 }
 
+// ─────────────────────────────────────────────
+// main
+// ─────────────────────────────────────────────
+
 func main() {
 	cfg := seedConfig{}
 	flag.IntVar(&cfg.users, "users", 500, "number of fake users to create, excluding the root/admin user")
-	flag.IntVar(&cfg.groups, "groups", 50, "number of fake groups to create")
-	flag.IntVar(&cfg.directChannels, "direct-channels", 0, "number of accepted direct connections/channels to create; 0 derives from connections-per-user")
-	flag.IntVar(&cfg.connectionsPerUser, "connections-per-user", 10, "minimum accepted direct connections for each user")
-	flag.IntVar(&cfg.historyDays, "history-days", 10, "number of previous days to spread each user's messages across")
-	flag.IntVar(&cfg.minGroupsPerUser, "min-groups-per-user", 10, "minimum groups each user joins")
-	flag.IntVar(&cfg.maxGroupsPerUser, "max-groups-per-user", 15, "maximum groups each user joins")
-	flag.IntVar(&cfg.minMessagesPerUser, "min-messages-per-user", 50, "minimum total messages created by each user")
-	flag.IntVar(&cfg.maxMessagesPerUser, "max-messages-per-user", 80, "maximum total messages created by each user")
+	flag.IntVar(&cfg.groups, "groups", 80, "number of fake groups to create")
+	flag.IntVar(&cfg.directChannels, "direct-channels", 0, "number of accepted direct connections; 0 derives from connections-per-user")
+	flag.IntVar(&cfg.connectionsPerUser, "connections-per-user", 15, "minimum accepted direct connections for each user")
+	flag.IntVar(&cfg.historyDays, "history-days", 30, "number of previous days to spread messages across")
+	flag.IntVar(&cfg.minGroupsPerUser, "min-groups-per-user", 5, "minimum groups each user joins")
+	flag.IntVar(&cfg.maxGroupsPerUser, "max-groups-per-user", 20, "maximum groups each user joins")
+	flag.IntVar(&cfg.minMessagesPerUser, "min-messages-per-user", 60, "minimum total messages created by each user")
+	flag.IntVar(&cfg.maxMessagesPerUser, "max-messages-per-user", 120, "maximum total messages created by each user")
 	flag.IntVar(&cfg.appendMessagesPerUser, "append-messages-per-user", 0, "append this many new messages for each existing user without recreating other data")
 	flag.BoolVar(&cfg.reset, "reset", false, "drop seeded collections before inserting")
 	flag.Parse()
 
-	if cfg.users < 1 || cfg.groups < 1 || cfg.directChannels < 0 || cfg.connectionsPerUser < 0 || cfg.historyDays < 1 || cfg.minGroupsPerUser < 0 || cfg.maxGroupsPerUser < 0 || cfg.minMessagesPerUser < 0 || cfg.maxMessagesPerUser < 0 || cfg.appendMessagesPerUser < 0 {
+	if cfg.users < 1 || cfg.groups < 1 || cfg.directChannels < 0 ||
+		cfg.connectionsPerUser < 0 || cfg.historyDays < 1 ||
+		cfg.minGroupsPerUser < 0 || cfg.maxGroupsPerUser < 0 ||
+		cfg.minMessagesPerUser < 0 || cfg.maxMessagesPerUser < 0 ||
+		cfg.appendMessagesPerUser < 0 {
 		log.Fatal("invalid seed size")
 	}
 	if cfg.connectionsPerUser >= cfg.users+1 {
@@ -83,12 +95,13 @@ func main() {
 	}
 
 	initianlize.LoadConfig()
+	initianlize.InitLogger()
 	initianlize.InitMongoDB()
 	defer func() {
 		_ = global.Mgo.Client.Disconnect(context.Background())
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
 	defer cancel()
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -101,55 +114,62 @@ func main() {
 		return
 	}
 
-	if cfg.reset {
-		if err := resetCollections(ctx, db); err != nil {
-			log.Fatalf("reset collections: %v", err)
-		}
-	}
+	// if cfg.reset {
+	// 	if err := resetCollections(ctx, db); err != nil {
+	// 		log.Fatalf("reset collections: %v", err)
+	// 	}
+	// }
 
-	userRoleID := mustEnsureRole(ctx, db, "user", "normal")
-	adminRoleID := mustEnsureRole(ctx, db, "admin", "highest previllege")
+	// 1. create roles first
+	userRoleID, adminRoleID := createRoles(ctx, db)
+
+	// 2. hash password
 	passwordHash, err := utils.HashPassword(defaultPassword)
 	if err != nil {
 		log.Fatalf("hash password: %v", err)
 	}
 
+	// 3. users
 	users := buildUsers(cfg.users, userRoleID, adminRoleID, passwordHash)
 	if err := upsertUsers(ctx, db, users); err != nil {
 		log.Fatalf("upsert users: %v", err)
 	}
-
 	userIDs := make([]primitive.ObjectID, 0, len(users))
-	for _, user := range users {
-		userIDs = append(userIDs, user.ID)
+	for _, u := range users {
+		userIDs = append(userIDs, u.ID)
 	}
 
+	// 4. groups
 	groups := buildGroups(cfg, rng, userIDs)
 	if err := insertGroups(ctx, db, groups); err != nil {
 		log.Fatalf("insert groups: %v", err)
 	}
 
+	// 5. direct connections
 	directs := buildDirectConnections(cfg, rng, userIDs)
 	if err := insertDirectConnections(ctx, db, directs); err != nil {
 		log.Fatalf("insert direct connections: %v", err)
 	}
 
+	// 6. channels
 	allChannels := make([]schema.DbChannel, 0, len(groups)+len(directs))
-	for _, group := range groups {
-		allChannels = append(allChannels, group.channel)
+	for _, g := range groups {
+		allChannels = append(allChannels, g.channel)
 	}
-	for _, direct := range directs {
-		allChannels = append(allChannels, direct.channel)
+	for _, d := range directs {
+		allChannels = append(allChannels, d.channel)
 	}
 	if err := insertChannels(ctx, db, allChannels); err != nil {
 		log.Fatalf("insert channels: %v", err)
 	}
 
+	// 7. channel members
 	channelMembers := buildChannelMembers(groups, directs)
 	if err := insertMany(ctx, db.Collection(schema.CollectionNameChannelMembers), docsFromChannelMembers(channelMembers), 1000); err != nil {
 		log.Fatalf("insert channel members: %v", err)
 	}
 
+	// 8. messages
 	messages, channelLast := buildMessages(cfg, rng, groups, directs)
 	if err := insertMany(ctx, db.Collection(schema.CollectionNameMessage), docsFromMessages(messages), 1000); err != nil {
 		log.Fatalf("insert messages: %v", err)
@@ -158,86 +178,102 @@ func main() {
 		log.Fatalf("update channel last messages: %v", err)
 	}
 
+	// 9. unreads
 	unreads := buildChannelUnreads(rng, groups, directs, channelLast)
 	if err := insertMany(ctx, db.Collection(schema.CollectionNameChannelUnread), docsFromUnreads(unreads), 1000); err != nil {
 		log.Fatalf("insert channel unread: %v", err)
 	}
 
+	// 10. message offsets
 	offsets := buildMessageOffsets(groups, directs)
 	if err := insertMany(ctx, db.Collection(schema.CollectionNameMessageOffsets), docsFromOffsets(offsets), 1000); err != nil {
 		log.Fatalf("insert message offsets: %v", err)
 	}
 
-	extras := buildMessageExtras(rng, messages, channelParticipants(groups, directs))
+	// 11. message extras
+	participants := channelParticipants(groups, directs)
+	extras := buildMessageExtras(rng, messages, participants)
 	if err := insertMany(ctx, db.Collection(schema.CollectionNameMessageExtras), docsFromExtras(extras), 2000); err != nil {
 		log.Fatalf("insert message extras: %v", err)
 	}
 
-	reactions := buildMessageReactions(rng, messages, channelParticipants(groups, directs))
+	// 12. reactions
+	reactions := buildMessageReactions(rng, messages, participants)
 	if err := insertMany(ctx, db.Collection(schema.CollectionNameMessReaction), docsFromReactions(reactions), 1000); err != nil {
 		log.Fatalf("insert message reactions: %v", err)
 	}
 
-	fmt.Printf("Seed completed\n")
-	fmt.Printf("- users: %d fake + root@example.com, password: %s\n", cfg.users, defaultPassword)
-	fmt.Printf("- groups: %d\n", len(groups))
-	fmt.Printf("- direct channels: %d\n", len(directs))
-	fmt.Printf("- channels: %d\n", len(allChannels))
-	fmt.Printf("- per-user direct connections: at least %d\n", cfg.connectionsPerUser)
-	fmt.Printf("- per-user group memberships: %d-%d\n", cfg.minGroupsPerUser, cfg.maxGroupsPerUser)
-	fmt.Printf("- message history: %d days, %d-%d total messages/user\n", cfg.historyDays, cfg.minMessagesPerUser, cfg.maxMessagesPerUser)
-	fmt.Printf("- channel members: %d\n", len(channelMembers))
-	fmt.Printf("- messages: %d\n", len(messages))
-	fmt.Printf("- channel unread rows: %d\n", len(unreads))
-	fmt.Printf("- message offsets: %d\n", len(offsets))
-	fmt.Printf("- message extras: %d\n", len(extras))
-	fmt.Printf("- message reactions: %d\n", len(reactions))
+	fmt.Printf("\nSeed completed!\n")
+	fmt.Printf("  users           : %d fake + root@example.com  (password: %s)\n", cfg.users, defaultPassword)
+	fmt.Printf("  groups          : %d\n", len(groups))
+	fmt.Printf("  direct channels : %d\n", len(directs))
+	fmt.Printf("  all channels    : %d\n", len(allChannels))
+	fmt.Printf("  channel members : %d\n", len(channelMembers))
+	fmt.Printf("  messages        : %d\n", len(messages))
+	fmt.Printf("  unreads         : %d\n", len(unreads))
+	fmt.Printf("  offsets         : %d\n", len(offsets))
+	fmt.Printf("  extras          : %d\n", len(extras))
+	fmt.Printf("  reactions       : %d\n", len(reactions))
 }
 
-func resetCollections(ctx context.Context, db *mongo.Database) error {
-	collections := []string{
-		schema.CollectionNameUser,
-		schema.CollectionNameRole,
-		schema.CollectionNameGroup,
-		schema.CollectionNameConnection,
-		schema.CollectionNameChannel,
-		schema.CollectionNameChannelMembers,
-		schema.CollectionNameChannelUnread,
-		schema.CollectionNameMessage,
-		schema.CollectionNameMessageExtras,
-		schema.CollectionNameMessageOffsets,
-		schema.CollectionNameMessReaction,
-		schema.CollectionNameRefreshToken,
-	}
-	for _, name := range collections {
-		if err := db.Collection(name).Drop(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
+// ─────────────────────────────────────────────
+// Infrastructure helpers
+// ─────────────────────────────────────────────
+
+// func resetCollections(ctx context.Context, db *mongo.Database) error {
+// 	collections := []string{
+// 		schema.CollectionNameUser,
+// 		schema.CollectionNameRole,
+// 		schema.CollectionNameGroup,
+// 		schema.CollectionNameConnection,
+// 		schema.CollectionNameChannel,
+// 		schema.CollectionNameChannelMembers,
+// 		schema.CollectionNameChannelUnread,
+// 		schema.CollectionNameMessage,
+// 		schema.CollectionNameMessageExtras,
+// 		schema.CollectionNameMessageOffsets,
+// 		schema.CollectionNameMessReaction,
+// 		schema.CollectionNameRefreshToken,
+// 	}
+// 	for _, name := range collections {
+// 		if err := db.Collection(name).Drop(ctx); err != nil {
+// 			return err
+// 		}
+// 	}
+// 	return nil
+// }
+
+// ─────────────────────────────────────────────
+// Roles - runs first
+// ─────────────────────────────────────────────
+
+// createRoles ensures the two primary roles (user, admin) exist and returns their IDs.
+// This is always the first step in the seed pipeline.
+func createRoles(ctx context.Context, db *mongo.Database) (userRoleID, adminRoleID primitive.ObjectID) {
+	userRoleID = insertRole(ctx, db, "user", "normal user")
+	adminRoleID = insertRole(ctx, db, "admin", "highest privilege")
+	fmt.Printf("  roles created   : user=%s  admin=%s\n", userRoleID.Hex(), adminRoleID.Hex())
+	return
 }
 
-func mustEnsureRole(ctx context.Context, db *mongo.Database, roleName, note string) primitive.ObjectID {
+func insertRole(ctx context.Context, db *mongo.Database, roleName, note string) primitive.ObjectID {
 	now := time.Now()
-	filter := bson.M{"role_name": roleName}
-	update := bson.M{
-		"$setOnInsert": bson.M{
-			"_id":        primitive.NewObjectID(),
-			"role_name":  roleName,
-			"created_at": now,
-		},
-		"$set": bson.M{
-			"role_note":  note,
-			"updated_at": now,
-		},
+	role := schema.DbRole{
+		ID:        primitive.NewObjectID(),
+		RoleName:  roleName,
+		RoleNote:  note,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
-	opts := options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)
-	var saved schema.DbRole
-	if err := db.Collection(schema.CollectionNameRole).FindOneAndUpdate(ctx, filter, update, opts).Decode(&saved); err != nil {
-		log.Fatalf("ensure role %s: %v", roleName, err)
+	if _, err := db.Collection(schema.CollectionNameRole).InsertOne(ctx, role); err != nil {
+		log.Fatalf("insert role %s: %v", roleName, err)
 	}
-	return saved.ID
+	return role.ID
 }
+
+// ─────────────────────────────────────────────
+// Users
+// ─────────────────────────────────────────────
 
 func buildUsers(count int, userRoleID, adminRoleID primitive.ObjectID, passwordHash string) []schema.DbUser {
 	now := time.Now()
@@ -255,19 +291,28 @@ func buildUsers(count int, userRoleID, adminRoleID primitive.ObjectID, passwordH
 		},
 	}
 
-	firstNames := []string{"An", "Binh", "Chi", "Dung", "Giang", "Ha", "Hieu", "Khanh", "Lan", "Linh", "Long", "Minh", "Nam", "Ngoc", "Phuc", "Quan", "Son", "Thao", "Trang", "Vy"}
-	lastNames := []string{"Nguyen", "Tran", "Le", "Pham", "Hoang", "Huynh", "Phan", "Vu", "Vo", "Dang"}
+	firstNames := []string{
+		"An", "Binh", "Chi", "Dung", "Giang", "Ha", "Hieu", "Khanh", "Lan", "Linh",
+		"Long", "Minh", "Nam", "Ngoc", "Phuc", "Quan", "Son", "Thao", "Trang", "Vy",
+		"Anh", "Bao", "Cuong", "Dat", "Duc", "Hai", "Hung", "Khoa", "Lam", "Loc",
+	}
+	lastNames := []string{
+		"Nguyen", "Tran", "Le", "Pham", "Hoang", "Huynh", "Phan", "Vu", "Vo", "Dang",
+		"Bui", "Do", "Ho", "Ngo", "Duong", "Ly",
+	}
+
 	for i := 1; i <= count; i++ {
-		name := fmt.Sprintf("%s %s %03d", firstNames[i%len(firstNames)], lastNames[i%len(lastNames)], i)
+		fn := firstNames[i%len(firstNames)]
+		ln := lastNames[i%len(lastNames)]
 		users = append(users, schema.DbUser{
 			ID:        primitive.NewObjectID(),
-			UserName:  name,
+			UserName:  fmt.Sprintf("%s %s %03d", fn, ln, i),
 			Password:  passwordHash,
-			Email:     fmt.Sprintf("fake.user.%04d@example.com", i),
+			Email:     fmt.Sprintf("user.%05d@example.com", i),
 			AvatarUrl: avatarURL(i),
 			IsActive:  true,
 			Role:      userRoleID,
-			CreatedAt: now.Add(-time.Duration(i%90) * 24 * time.Hour),
+			CreatedAt: now.Add(-time.Duration(i%180) * 24 * time.Hour),
 			UpdatedAt: now,
 		})
 	}
@@ -276,22 +321,22 @@ func buildUsers(count int, userRoleID, adminRoleID primitive.ObjectID, passwordH
 
 func upsertUsers(ctx context.Context, db *mongo.Database, users []schema.DbUser) error {
 	models := make([]mongo.WriteModel, 0, len(users))
-	for _, user := range users {
+	for _, u := range users {
 		models = append(models, mongo.NewUpdateOneModel().
-			SetFilter(bson.M{"email": user.Email}).
+			SetFilter(bson.M{"email": u.Email}).
 			SetUpdate(bson.M{
 				"$setOnInsert": bson.M{
-					"_id":        user.ID,
-					"created_at": user.CreatedAt,
+					"_id":        u.ID,
+					"created_at": u.CreatedAt,
 				},
 				"$set": bson.M{
-					"user_name":  user.UserName,
-					"password":   user.Password,
-					"email":      user.Email,
-					"avatar_url": user.AvatarUrl,
-					"is_active":  user.IsActive,
-					"role":       user.Role,
-					"updated_at": user.UpdatedAt,
+					"user_name":  u.UserName,
+					"password":   u.Password,
+					"email":      u.Email,
+					"avatar_url": u.AvatarUrl,
+					"is_active":  u.IsActive,
+					"role":       u.Role,
+					"updated_at": u.UpdatedAt,
 				},
 			}).
 			SetUpsert(true))
@@ -300,13 +345,17 @@ func upsertUsers(ctx context.Context, db *mongo.Database, users []schema.DbUser)
 	return err
 }
 
+// ─────────────────────────────────────────────
+// Groups
+// ─────────────────────────────────────────────
+
 func buildGroups(cfg seedConfig, rng *rand.Rand, userIDs []primitive.ObjectID) []groupSeed {
 	now := time.Now()
 	groups := make([]groupSeed, 0, cfg.groups)
 	for i := 0; i < cfg.groups; i++ {
 		groupID := primitive.NewObjectID()
 		channelID := primitive.NewObjectID()
-		createdAt := now.Add(-time.Duration(i%30) * 24 * time.Hour)
+		createdAt := now.Add(-time.Duration(i%60) * 24 * time.Hour)
 		groups = append(groups, groupSeed{
 			group: schema.DbGroup{
 				ID:        groupID,
@@ -330,20 +379,19 @@ func buildGroups(cfg seedConfig, rng *rand.Rand, userIDs []primitive.ObjectID) [
 	for i := range participantSets {
 		participantSets[i] = make(map[primitive.ObjectID]bool)
 	}
-	for _, userID := range userIDs {
+	for _, uid := range userIDs {
 		groupCount := randomBetween(rng, cfg.minGroupsPerUser, cfg.maxGroupsPerUser)
-		for _, groupIndex := range rng.Perm(cfg.groups)[:groupCount] {
-			participantSets[groupIndex][userID] = true
+		for _, idx := range rng.Perm(cfg.groups)[:groupCount] {
+			participantSets[idx][uid] = true
 		}
 	}
 	for i := range participantSets {
 		if len(participantSets[i]) == 0 {
 			participantSets[i][userIDs[rng.Intn(len(userIDs))]] = true
 		}
-
 		participants := make([]primitive.ObjectID, 0, len(participantSets[i]))
-		for userID := range participantSets[i] {
-			participants = append(participants, userID)
+		for uid := range participantSets[i] {
+			participants = append(participants, uid)
 		}
 		sort.Slice(participants, func(a, b int) bool {
 			return participants[a].Hex() < participants[b].Hex()
@@ -359,16 +407,20 @@ func buildGroups(cfg seedConfig, rng *rand.Rand, userIDs []primitive.ObjectID) [
 
 func insertGroups(ctx context.Context, db *mongo.Database, groups []groupSeed) error {
 	docs := make([]any, 0, len(groups))
-	for _, group := range groups {
-		docs = append(docs, group.group)
+	for _, g := range groups {
+		docs = append(docs, g.group)
 	}
 	return insertMany(ctx, db.Collection(schema.CollectionNameGroup), docs, 1000)
 }
 
+// ─────────────────────────────────────────────
+// Direct connections
+// ─────────────────────────────────────────────
+
 func buildDirectConnections(cfg seedConfig, rng *rand.Rand, userIDs []primitive.ObjectID) []directSeed {
 	now := time.Now()
 	userCount := len(userIDs)
-	maxPairs := len(userIDs) * (len(userIDs) - 1) / 2
+	maxPairs := userCount * (userCount - 1) / 2
 	target := cfg.directChannels
 	minRequired := (userCount*cfg.connectionsPerUser + 1) / 2
 	if target < minRequired {
@@ -380,7 +432,7 @@ func buildDirectConnections(cfg seedConfig, rng *rand.Rand, userIDs []primitive.
 
 	seen := make(map[string]bool, target)
 	directs := make([]directSeed, 0, target)
-	degrees := make(map[primitive.ObjectID]int, len(userIDs))
+	degrees := make(map[primitive.ObjectID]int, userCount)
 
 	appendDirect := func(a, b primitive.ObjectID) bool {
 		if a == b || len(directs) >= target {
@@ -393,11 +445,11 @@ func buildDirectConnections(cfg seedConfig, rng *rand.Rand, userIDs []primitive.
 		}
 		seen[key] = true
 
-		connectionID := primitive.NewObjectID()
-		channelID := primitive.NewObjectID()
-		acceptedAt := now.Add(-time.Duration(rng.Intn(30)) * 24 * time.Hour)
-		connection := schema.DbConnection{
-			ID:             connectionID,
+		connID := primitive.NewObjectID()
+		chanID := primitive.NewObjectID()
+		acceptedAt := now.Add(-time.Duration(rng.Intn(60)) * 24 * time.Hour)
+		conn := schema.DbConnection{
+			ID:             connID,
 			RequesterID:    a,
 			ReceiverID:     b,
 			ParticipantIDs: [2]primitive.ObjectID{pair[0], pair[1]},
@@ -406,68 +458,67 @@ func buildDirectConnections(cfg seedConfig, rng *rand.Rand, userIDs []primitive.
 			UpdatedAt:      now,
 			AcceptedAt:     &acceptedAt,
 		}
-		channel := schema.DbChannel{
-			ID:             channelID,
+		ch := schema.DbChannel{
+			ID:             chanID,
 			ChannelType:    schema.ChannelTypeDirect,
-			ChannelKey:     connectionID,
+			ChannelKey:     connID,
 			IsActive:       true,
 			ParticipantIds: []primitive.ObjectID{pair[0], pair[1]},
-			CreatedAt:      connection.CreatedAt,
+			CreatedAt:      conn.CreatedAt,
 			UpdatedAt:      now,
 		}
-		directs = append(directs, directSeed{connection: connection, channel: channel, participants: channel.ParticipantIds})
+		directs = append(directs, directSeed{connection: conn, channel: ch, participants: ch.ParticipantIds})
 		degrees[pair[0]]++
 		degrees[pair[1]]++
 		return true
 	}
 
 	for offset := 1; offset <= cfg.connectionsPerUser/2; offset++ {
-		for i, userID := range userIDs {
-			appendDirect(userID, userIDs[(i+offset)%userCount])
+		for i, uid := range userIDs {
+			appendDirect(uid, userIDs[(i+offset)%userCount])
 		}
 	}
-
 	for hasUserBelowDegree(userIDs, degrees, cfg.connectionsPerUser) && len(directs) < target {
-		for _, userID := range userIDs {
-			if degrees[userID] >= cfg.connectionsPerUser {
+		for _, uid := range userIDs {
+			if degrees[uid] >= cfg.connectionsPerUser {
 				continue
 			}
-			for attempts := 0; attempts < userCount*2 && degrees[userID] < cfg.connectionsPerUser; attempts++ {
-				otherID := userIDs[rng.Intn(userCount)]
-				appendDirect(userID, otherID)
+			for attempts := 0; attempts < userCount*2 && degrees[uid] < cfg.connectionsPerUser; attempts++ {
+				appendDirect(uid, userIDs[rng.Intn(userCount)])
 			}
 		}
 	}
-
 	for len(directs) < target {
-		a := userIDs[rng.Intn(len(userIDs))]
-		b := userIDs[rng.Intn(len(userIDs))]
-		appendDirect(a, b)
+		appendDirect(userIDs[rng.Intn(len(userIDs))], userIDs[rng.Intn(len(userIDs))])
 	}
 	return directs
 }
 
 func insertDirectConnections(ctx context.Context, db *mongo.Database, directs []directSeed) error {
 	docs := make([]any, 0, len(directs))
-	for _, direct := range directs {
-		docs = append(docs, direct.connection)
+	for _, d := range directs {
+		docs = append(docs, d.connection)
 	}
 	return insertMany(ctx, db.Collection(schema.CollectionNameConnection), docs, 1000)
 }
 
 func insertChannels(ctx context.Context, db *mongo.Database, channels []schema.DbChannel) error {
 	docs := make([]any, 0, len(channels))
-	for _, channel := range channels {
-		docs = append(docs, channel)
+	for _, ch := range channels {
+		docs = append(docs, ch)
 	}
 	return insertMany(ctx, db.Collection(schema.CollectionNameChannel), docs, 1000)
 }
 
+// ─────────────────────────────────────────────
+// Channel members
+// ─────────────────────────────────────────────
+
 func buildChannelMembers(groups []groupSeed, directs []directSeed) []schema.DbChannelMember {
 	now := time.Now()
 	members := make([]schema.DbChannelMember, 0)
-	for _, group := range groups {
-		for i, userID := range group.participants {
+	for _, g := range groups {
+		for i, uid := range g.participants {
 			role := schema.ChannelMemberRoleMember
 			if i == 0 {
 				role = schema.ChannelMemberRoleAdmin
@@ -476,20 +527,20 @@ func buildChannelMembers(groups []groupSeed, directs []directSeed) []schema.DbCh
 			}
 			members = append(members, schema.DbChannelMember{
 				ID:        primitive.NewObjectID(),
-				ChannelID: group.channel.ID,
-				UserID:    userID,
+				ChannelID: g.channel.ID,
+				UserID:    uid,
 				Role:      role,
 				Status:    schema.ChannelMemberStatusActive,
-				JoinedAt:  group.group.CreatedAt.Add(time.Duration(i) * time.Minute),
+				JoinedAt:  g.group.CreatedAt.Add(time.Duration(i) * time.Minute),
 			})
 		}
 	}
-	for _, direct := range directs {
-		for _, userID := range direct.participants {
+	for _, d := range directs {
+		for _, uid := range d.participants {
 			members = append(members, schema.DbChannelMember{
 				ID:        primitive.NewObjectID(),
-				ChannelID: direct.channel.ID,
-				UserID:    userID,
+				ChannelID: d.channel.ID,
+				UserID:    uid,
 				Role:      schema.ChannelMemberRoleMember,
 				Status:    schema.ChannelMemberStatusActive,
 				JoinedAt:  now.Add(-24 * time.Hour),
@@ -499,32 +550,35 @@ func buildChannelMembers(groups []groupSeed, directs []directSeed) []schema.DbCh
 	return members
 }
 
+// ─────────────────────────────────────────────
+// Messages
+// ─────────────────────────────────────────────
+
 func buildMessages(cfg seedConfig, rng *rand.Rand, groups []groupSeed, directs []directSeed) ([]schema.Message, map[primitive.ObjectID]schema.Message) {
 	now := time.Now()
 	participantsByChannel := channelParticipants(groups, directs)
 	channelsByUser := make(map[primitive.ObjectID][]primitive.ObjectID)
-	for channelID, participants := range participantsByChannel {
-		for _, userID := range participants {
-			channelsByUser[userID] = append(channelsByUser[userID], channelID)
+	for chID, parts := range participantsByChannel {
+		for _, uid := range parts {
+			channelsByUser[uid] = append(channelsByUser[uid], chID)
 		}
 	}
 
-	estimatedMessages := len(channelsByUser) * ((cfg.minMessagesPerUser + cfg.maxMessagesPerUser) / 2)
 	messagesByChannel := make(map[primitive.ObjectID][]schema.Message, len(participantsByChannel))
-	for userID, channelIDs := range channelsByUser {
-		targetMessages := randomBetween(rng, cfg.minMessagesPerUser, cfg.maxMessagesPerUser)
-		for i := 0; i < targetMessages; i++ {
-			channelID := channelIDs[rng.Intn(len(channelIDs))]
+	for uid, chIDs := range channelsByUser {
+		count := randomBetween(rng, cfg.minMessagesPerUser, cfg.maxMessagesPerUser)
+		for i := 0; i < count; i++ {
+			chID := chIDs[rng.Intn(len(chIDs))]
 			createdAt := randomMessageTime(rng, now, cfg.historyDays)
-			updatedAt := createdAt.Add(time.Duration(rng.Intn(10*60)) * time.Second)
+			updatedAt := createdAt.Add(time.Duration(rng.Intn(600)) * time.Second)
 			if updatedAt.After(now) {
 				updatedAt = now
 			}
 			content, msgType := messagePayload(rng, i+1)
-			messagesByChannel[channelID] = append(messagesByChannel[channelID], schema.Message{
+			messagesByChannel[chID] = append(messagesByChannel[chID], schema.Message{
 				ID:        primitive.NewObjectID(),
-				ChannelID: channelID,
-				FromID:    userID,
+				ChannelID: chID,
+				FromID:    uid,
 				Content:   content,
 				MsgType:   msgType,
 				Status:    messageStatus(rng),
@@ -535,26 +589,26 @@ func buildMessages(cfg seedConfig, rng *rand.Rand, groups []groupSeed, directs [
 		}
 	}
 
-	messages := make([]schema.Message, 0, estimatedMessages)
+	messages := make([]schema.Message, 0)
 	lastByChannel := make(map[primitive.ObjectID]schema.Message, len(messagesByChannel))
-	for channelID, channelMessages := range messagesByChannel {
-		sort.Slice(channelMessages, func(i, j int) bool {
-			return channelMessages[i].CreatedAt.Before(channelMessages[j].CreatedAt)
+	for chID, chMsgs := range messagesByChannel {
+		sort.Slice(chMsgs, func(i, j int) bool {
+			return chMsgs[i].CreatedAt.Before(chMsgs[j].CreatedAt)
 		})
-		for i := range channelMessages {
-			channelMessages[i].MsgSeq = int64(i + 1)
-			messages = append(messages, channelMessages[i])
-			lastByChannel[channelID] = channelMessages[i]
+		for i := range chMsgs {
+			chMsgs[i].MsgSeq = int64(i + 1)
+			messages = append(messages, chMsgs[i])
 		}
+		lastByChannel[chID] = chMsgs[len(chMsgs)-1]
 	}
 	return messages, lastByChannel
 }
 
 func updateChannelLastMessages(ctx context.Context, db *mongo.Database, lastByChannel map[primitive.ObjectID]schema.Message) error {
 	models := make([]mongo.WriteModel, 0, len(lastByChannel))
-	for channelID, msg := range lastByChannel {
+	for chID, msg := range lastByChannel {
 		models = append(models, mongo.NewUpdateOneModel().
-			SetFilter(bson.M{"_id": channelID}).
+			SetFilter(bson.M{"_id": chID}).
 			SetUpdate(bson.M{"$set": bson.M{
 				"last_msg_id":   msg.ID,
 				"last_msg_seq":  msg.MsgSeq,
@@ -568,6 +622,115 @@ func updateChannelLastMessages(ctx context.Context, db *mongo.Database, lastByCh
 	_, err := db.Collection(schema.CollectionNameChannel).BulkWrite(ctx, models, options.BulkWrite().SetOrdered(false))
 	return err
 }
+
+// ─────────────────────────────────────────────
+// Unreads & offsets
+// ─────────────────────────────────────────────
+
+func buildChannelUnreads(rng *rand.Rand, groups []groupSeed, directs []directSeed, lastByChannel map[primitive.ObjectID]schema.Message) []schema.DbChannelUnread {
+	unreads := make([]schema.DbChannelUnread, 0)
+	add := func(chID primitive.ObjectID, parts []primitive.ObjectID) {
+		msg, ok := lastByChannel[chID]
+		if !ok {
+			return
+		}
+		for _, uid := range parts {
+			unreads = append(unreads, schema.DbChannelUnread{
+				ID:          primitive.NewObjectID(),
+				UserID:      uid,
+				ChannelID:   chID,
+				LastMsgID:   msg.ID,
+				LastMsgTime: msg.CreatedAt,
+				IsActive:    true,
+				Unread:      int64(rng.Intn(20)),
+				Version:     msg.MsgSeq,
+			})
+		}
+	}
+	for _, g := range groups {
+		add(g.channel.ID, g.participants)
+	}
+	for _, d := range directs {
+		add(d.channel.ID, d.participants)
+	}
+	return unreads
+}
+
+func buildMessageOffsets(groups []groupSeed, directs []directSeed) []schema.MessageOffsets {
+	offsets := make([]schema.MessageOffsets, 0)
+	add := func(chID primitive.ObjectID, parts []primitive.ObjectID) {
+		for _, uid := range parts {
+			offsets = append(offsets, schema.MessageOffsets{
+				ID:        primitive.NewObjectID(),
+				UserID:    uid,
+				ChannelID: chID,
+				Offset:    0,
+				Version:   1,
+				Sync:      true,
+			})
+		}
+	}
+	for _, g := range groups {
+		add(g.channel.ID, g.participants)
+	}
+	for _, d := range directs {
+		add(d.channel.ID, d.participants)
+	}
+	return offsets
+}
+
+// ─────────────────────────────────────────────
+// Message extras & reactions
+// ─────────────────────────────────────────────
+
+func buildMessageExtras(rng *rand.Rand, messages []schema.Message, participantsByChannel map[primitive.ObjectID][]primitive.ObjectID) []schema.MessageExtras {
+	extras := make([]schema.MessageExtras, 0, len(messages))
+	for _, msg := range messages {
+		parts := participantsByChannel[msg.ChannelID]
+		if len(parts) == 0 {
+			continue
+		}
+		viewers := pickParticipants(rng, parts, min(5, len(parts)))
+		for _, uid := range viewers {
+			extras = append(extras, schema.MessageExtras{
+				ID:        primitive.NewObjectID(),
+				UserID:    uid,
+				ChannelID: msg.ChannelID,
+				MsgID:     msg.ID,
+				Version:   msg.MsgSeq,
+				Sync:      rng.Intn(10) > 1,
+			})
+		}
+	}
+	return extras
+}
+
+func buildMessageReactions(rng *rand.Rand, messages []schema.Message, participantsByChannel map[primitive.ObjectID][]primitive.ObjectID) []schema.MessageReaction {
+	reactionTypes := []string{"like", "love", "haha", "wow", "sad", "angry"}
+	reactions := make([]schema.MessageReaction, 0)
+	for _, msg := range messages {
+		if rng.Intn(100) > 18 {
+			continue
+		}
+		parts := participantsByChannel[msg.ChannelID]
+		if len(parts) == 0 {
+			continue
+		}
+		reactor := parts[rng.Intn(len(parts))]
+		reactions = append(reactions, schema.MessageReaction{
+			ID:             primitive.NewObjectID(),
+			MsgID:          msg.ID,
+			TypeOfReaction: reactionTypes[rng.Intn(len(reactionTypes))],
+			CreatedBy:      reactor,
+			CreatedAt:      msg.CreatedAt.Add(time.Duration(rng.Intn(30)) * time.Minute),
+		})
+	}
+	return reactions
+}
+
+// ─────────────────────────────────────────────
+// Append-messages mode
+// ─────────────────────────────────────────────
 
 func appendMessagesForExistingUsers(ctx context.Context, db *mongo.Database, rng *rand.Rand, messagesPerUser int) error {
 	userIDs, err := loadExistingUserIDs(ctx, db)
@@ -593,24 +756,22 @@ func appendMessagesForExistingUsers(ctx context.Context, db *mongo.Database, rng
 	if err := updateExistingChannelUnreads(ctx, db, rng, channelLast, participantsByChannel); err != nil {
 		return err
 	}
-
 	extras := buildMessageExtras(rng, messages, participantsByChannel)
 	if err := insertMany(ctx, db.Collection(schema.CollectionNameMessageExtras), docsFromExtras(extras), 2000); err != nil {
 		return err
 	}
-
 	reactions := buildMessageReactions(rng, messages, participantsByChannel)
 	if err := insertMany(ctx, db.Collection(schema.CollectionNameMessReaction), docsFromReactions(reactions), 1000); err != nil {
 		return err
 	}
 
-	fmt.Printf("Append messages completed\n")
-	fmt.Printf("- users: %d\n", len(userIDs))
-	fmt.Printf("- appended messages/user: %d\n", messagesPerUser)
-	fmt.Printf("- appended messages: %d\n", len(messages))
-	fmt.Printf("- touched channels: %d\n", len(channelLast))
-	fmt.Printf("- message extras: %d\n", len(extras))
-	fmt.Printf("- message reactions: %d\n", len(reactions))
+	fmt.Printf("\nAppend completed!\n")
+	fmt.Printf("  users            : %d\n", len(userIDs))
+	fmt.Printf("  messages/user    : %d\n", messagesPerUser)
+	fmt.Printf("  total messages   : %d\n", len(messages))
+	fmt.Printf("  touched channels : %d\n", len(channelLast))
+	fmt.Printf("  extras           : %d\n", len(extras))
+	fmt.Printf("  reactions        : %d\n", len(reactions))
 	return nil
 }
 
@@ -620,22 +781,18 @@ func loadExistingUserIDs(ctx context.Context, db *mongo.Database) ([]primitive.O
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-
-	var users []struct {
+	var rows []struct {
 		ID primitive.ObjectID `bson:"_id"`
 	}
-	if err := cursor.All(ctx, &users); err != nil {
+	if err := cursor.All(ctx, &rows); err != nil {
 		return nil, err
 	}
-
-	userIDs := make([]primitive.ObjectID, 0, len(users))
-	for _, user := range users {
-		userIDs = append(userIDs, user.ID)
+	ids := make([]primitive.ObjectID, 0, len(rows))
+	for _, r := range rows {
+		ids = append(ids, r.ID)
 	}
-	sort.Slice(userIDs, func(i, j int) bool {
-		return userIDs[i].Hex() < userIDs[j].Hex()
-	})
-	return userIDs, nil
+	sort.Slice(ids, func(i, j int) bool { return ids[i].Hex() < ids[j].Hex() })
+	return ids, nil
 }
 
 func loadExistingChannelMemberships(ctx context.Context, db *mongo.Database) (map[primitive.ObjectID][]primitive.ObjectID, map[primitive.ObjectID][]primitive.ObjectID, error) {
@@ -644,7 +801,6 @@ func loadExistingChannelMemberships(ctx context.Context, db *mongo.Database) (ma
 		return nil, nil, err
 	}
 	defer cursor.Close(ctx)
-
 	var members []struct {
 		ChannelID primitive.ObjectID `bson:"channel_id"`
 		UserID    primitive.ObjectID `bson:"user_id"`
@@ -652,18 +808,17 @@ func loadExistingChannelMemberships(ctx context.Context, db *mongo.Database) (ma
 	if err := cursor.All(ctx, &members); err != nil {
 		return nil, nil, err
 	}
-
 	channelsByUser := make(map[primitive.ObjectID][]primitive.ObjectID)
 	participantsByChannel := make(map[primitive.ObjectID][]primitive.ObjectID)
-	seenUserChannel := make(map[string]bool, len(members))
-	for _, member := range members {
-		key := member.UserID.Hex() + ":" + member.ChannelID.Hex()
-		if seenUserChannel[key] {
+	seen := make(map[string]bool, len(members))
+	for _, m := range members {
+		key := m.UserID.Hex() + ":" + m.ChannelID.Hex()
+		if seen[key] {
 			continue
 		}
-		seenUserChannel[key] = true
-		channelsByUser[member.UserID] = append(channelsByUser[member.UserID], member.ChannelID)
-		participantsByChannel[member.ChannelID] = append(participantsByChannel[member.ChannelID], member.UserID)
+		seen[key] = true
+		channelsByUser[m.UserID] = append(channelsByUser[m.UserID], m.ChannelID)
+		participantsByChannel[m.ChannelID] = append(participantsByChannel[m.ChannelID], m.UserID)
 	}
 	return channelsByUser, participantsByChannel, nil
 }
@@ -674,7 +829,6 @@ func loadExistingChannelSequences(ctx context.Context, db *mongo.Database) (map[
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-
 	var channels []struct {
 		ID         primitive.ObjectID `bson:"_id"`
 		LastMsgSeq int64              `bson:"last_msg_seq"`
@@ -682,10 +836,9 @@ func loadExistingChannelSequences(ctx context.Context, db *mongo.Database) (map[
 	if err := cursor.All(ctx, &channels); err != nil {
 		return nil, err
 	}
-
 	seqs := make(map[primitive.ObjectID]int64, len(channels))
-	for _, channel := range channels {
-		seqs[channel.ID] = channel.LastMsgSeq
+	for _, ch := range channels {
+		seqs[ch.ID] = ch.LastMsgSeq
 	}
 	return seqs, nil
 }
@@ -693,23 +846,23 @@ func loadExistingChannelSequences(ctx context.Context, db *mongo.Database) (map[
 func buildAppendedMessages(rng *rand.Rand, userIDs []primitive.ObjectID, channelsByUser map[primitive.ObjectID][]primitive.ObjectID, channelSeqs map[primitive.ObjectID]int64, messagesPerUser int) ([]schema.Message, map[primitive.ObjectID]schema.Message) {
 	now := time.Now()
 	messagesByChannel := make(map[primitive.ObjectID][]schema.Message)
-	for _, userID := range userIDs {
-		channelIDs := channelsByUser[userID]
-		if len(channelIDs) == 0 {
+	for _, uid := range userIDs {
+		chIDs := channelsByUser[uid]
+		if len(chIDs) == 0 {
 			continue
 		}
 		for i := 0; i < messagesPerUser; i++ {
-			channelID := channelIDs[rng.Intn(len(channelIDs))]
+			chID := chIDs[rng.Intn(len(chIDs))]
 			createdAt := randomRecentMessageTime(rng, now, messagesPerUser-i)
-			updatedAt := createdAt.Add(time.Duration(rng.Intn(10*60)) * time.Second)
+			updatedAt := createdAt.Add(time.Duration(rng.Intn(600)) * time.Second)
 			if updatedAt.After(now) {
 				updatedAt = now
 			}
 			content, msgType := messagePayload(rng, i+1)
-			messagesByChannel[channelID] = append(messagesByChannel[channelID], schema.Message{
+			messagesByChannel[chID] = append(messagesByChannel[chID], schema.Message{
 				ID:        primitive.NewObjectID(),
-				ChannelID: channelID,
-				FromID:    userID,
+				ChannelID: chID,
+				FromID:    uid,
 				Content:   content,
 				MsgType:   msgType,
 				Status:    messageStatus(rng),
@@ -719,28 +872,25 @@ func buildAppendedMessages(rng *rand.Rand, userIDs []primitive.ObjectID, channel
 			})
 		}
 	}
-
-	messages := make([]schema.Message, 0, len(userIDs)*messagesPerUser)
-	lastByChannel := make(map[primitive.ObjectID]schema.Message, len(messagesByChannel))
-	for channelID, channelMessages := range messagesByChannel {
-		sort.Slice(channelMessages, func(i, j int) bool {
-			return channelMessages[i].CreatedAt.Before(channelMessages[j].CreatedAt)
-		})
-		nextSeq := channelSeqs[channelID] + 1
-		for i := range channelMessages {
-			channelMessages[i].MsgSeq = nextSeq
+	messages := make([]schema.Message, 0)
+	lastByChannel := make(map[primitive.ObjectID]schema.Message)
+	for chID, chMsgs := range messagesByChannel {
+		sort.Slice(chMsgs, func(i, j int) bool { return chMsgs[i].CreatedAt.Before(chMsgs[j].CreatedAt) })
+		nextSeq := channelSeqs[chID] + 1
+		for i := range chMsgs {
+			chMsgs[i].MsgSeq = nextSeq
 			nextSeq++
-			messages = append(messages, channelMessages[i])
-			lastByChannel[channelID] = channelMessages[i]
+			messages = append(messages, chMsgs[i])
 		}
+		lastByChannel[chID] = chMsgs[len(chMsgs)-1]
 	}
 	return messages, lastByChannel
 }
 
 func updateExistingChannelUnreads(ctx context.Context, db *mongo.Database, rng *rand.Rand, lastByChannel map[primitive.ObjectID]schema.Message, participantsByChannel map[primitive.ObjectID][]primitive.ObjectID) error {
 	models := make([]mongo.WriteModel, 0)
-	for channelID, lastMsg := range lastByChannel {
-		for _, userID := range participantsByChannel[channelID] {
+	for chID, lastMsg := range lastByChannel {
+		for _, uid := range participantsByChannel[chID] {
 			update := bson.M{
 				"$set": bson.M{
 					"last_msg_id":   lastMsg.ID,
@@ -748,17 +898,15 @@ func updateExistingChannelUnreads(ctx context.Context, db *mongo.Database, rng *
 					"is_active":     true,
 					"version":       lastMsg.MsgSeq,
 				},
-				"$inc": bson.M{
-					"unread": int64(rng.Intn(4)),
-				},
+				"$inc": bson.M{"unread": int64(rng.Intn(6))},
 				"$setOnInsert": bson.M{
 					"_id":        primitive.NewObjectID(),
-					"user_id":    userID,
-					"channel_id": channelID,
+					"user_id":    uid,
+					"channel_id": chID,
 				},
 			}
 			models = append(models, mongo.NewUpdateOneModel().
-				SetFilter(bson.M{"user_id": userID, "channel_id": channelID}).
+				SetFilter(bson.M{"user_id": uid, "channel_id": chID}).
 				SetUpdate(update).
 				SetUpsert(true))
 		}
@@ -770,113 +918,9 @@ func updateExistingChannelUnreads(ctx context.Context, db *mongo.Database, rng *
 	return err
 }
 
-func buildChannelUnreads(rng *rand.Rand, groups []groupSeed, directs []directSeed, lastByChannel map[primitive.ObjectID]schema.Message) []schema.DbChannelUnread {
-	unreads := make([]schema.DbChannelUnread, 0)
-	addUnread := func(channelID primitive.ObjectID, participants []primitive.ObjectID) {
-		lastMsg, ok := lastByChannel[channelID]
-		if !ok {
-			return
-		}
-		for _, userID := range participants {
-			unreads = append(unreads, schema.DbChannelUnread{
-				ID:          primitive.NewObjectID(),
-				UserID:      userID,
-				ChannelID:   channelID,
-				LastMsgID:   lastMsg.ID,
-				LastMsgTime: lastMsg.CreatedAt,
-				IsActive:    true,
-				Unread:      int64(rng.Intn(12)),
-				Version:     lastMsg.MsgSeq,
-			})
-		}
-	}
-	for _, group := range groups {
-		addUnread(group.channel.ID, group.participants)
-	}
-	for _, direct := range directs {
-		addUnread(direct.channel.ID, direct.participants)
-	}
-	return unreads
-}
-
-func buildMessageOffsets(groups []groupSeed, directs []directSeed) []schema.MessageOffsets {
-	offsets := make([]schema.MessageOffsets, 0)
-	addOffset := func(channelID primitive.ObjectID, participants []primitive.ObjectID) {
-		for _, userID := range participants {
-			offsets = append(offsets, schema.MessageOffsets{
-				ID:        primitive.NewObjectID(),
-				UserID:    userID,
-				ChannelID: channelID,
-				Offset:    0,
-				Version:   1,
-				Sync:      true,
-			})
-		}
-	}
-	for _, group := range groups {
-		addOffset(group.channel.ID, group.participants)
-	}
-	for _, direct := range directs {
-		addOffset(direct.channel.ID, direct.participants)
-	}
-	return offsets
-}
-
-func buildMessageExtras(rng *rand.Rand, messages []schema.Message, participantsByChannel map[primitive.ObjectID][]primitive.ObjectID) []schema.MessageExtras {
-	extras := make([]schema.MessageExtras, 0, len(messages))
-	for _, msg := range messages {
-		participants := participantsByChannel[msg.ChannelID]
-		if len(participants) == 0 {
-			continue
-		}
-		viewers := pickParticipants(rng, participants, min(3, len(participants)))
-		for _, userID := range viewers {
-			extras = append(extras, schema.MessageExtras{
-				ID:        primitive.NewObjectID(),
-				UserID:    userID,
-				ChannelID: msg.ChannelID,
-				MsgID:     msg.ID,
-				Version:   msg.MsgSeq,
-				Sync:      rng.Intn(10) > 1,
-			})
-		}
-	}
-	return extras
-}
-
-func buildMessageReactions(rng *rand.Rand, messages []schema.Message, participantsByChannel map[primitive.ObjectID][]primitive.ObjectID) []schema.MessageReaction {
-	reactions := []schema.MessageReaction{}
-	types := []string{"like", "love", "haha", "wow", "sad"}
-	for _, msg := range messages {
-		if rng.Intn(100) > 12 {
-			continue
-		}
-		participants := participantsByChannel[msg.ChannelID]
-		if len(participants) == 0 {
-			continue
-		}
-		reactor := participants[rng.Intn(len(participants))]
-		reactions = append(reactions, schema.MessageReaction{
-			ID:             primitive.NewObjectID(),
-			MsgID:          msg.ID,
-			TypeOfReaction: types[rng.Intn(len(types))],
-			CreatedBy:      reactor,
-			CreatedAt:      msg.CreatedAt.Add(time.Duration(rng.Intn(20)) * time.Minute),
-		})
-	}
-	return reactions
-}
-
-func channelParticipants(groups []groupSeed, directs []directSeed) map[primitive.ObjectID][]primitive.ObjectID {
-	result := make(map[primitive.ObjectID][]primitive.ObjectID, len(groups)+len(directs))
-	for _, group := range groups {
-		result[group.channel.ID] = group.participants
-	}
-	for _, direct := range directs {
-		result[direct.channel.ID] = direct.participants
-	}
-	return result
-}
+// ─────────────────────────────────────────────
+// Low-level DB helpers
+// ─────────────────────────────────────────────
 
 func insertMany(ctx context.Context, collection *mongo.Collection, docs []any, batchSize int) error {
 	if len(docs) == 0 {
@@ -894,77 +938,95 @@ func insertMany(ctx context.Context, collection *mongo.Collection, docs []any, b
 	return nil
 }
 
+func channelParticipants(groups []groupSeed, directs []directSeed) map[primitive.ObjectID][]primitive.ObjectID {
+	result := make(map[primitive.ObjectID][]primitive.ObjectID, len(groups)+len(directs))
+	for _, g := range groups {
+		result[g.channel.ID] = g.participants
+	}
+	for _, d := range directs {
+		result[d.channel.ID] = d.participants
+	}
+	return result
+}
+
+// ─────────────────────────────────────────────
+// Doc converters
+// ─────────────────────────────────────────────
+
 func docsFromChannelMembers(items []schema.DbChannelMember) []any {
-	docs := make([]any, 0, len(items))
-	for _, item := range items {
-		docs = append(docs, item)
+	docs := make([]any, len(items))
+	for i, v := range items {
+		docs[i] = v
 	}
 	return docs
 }
 
 func docsFromMessages(items []schema.Message) []any {
-	docs := make([]any, 0, len(items))
-	for _, item := range items {
-		docs = append(docs, item)
+	docs := make([]any, len(items))
+	for i, v := range items {
+		docs[i] = v
 	}
 	return docs
 }
 
 func docsFromUnreads(items []schema.DbChannelUnread) []any {
-	docs := make([]any, 0, len(items))
-	for _, item := range items {
-		docs = append(docs, item)
+	docs := make([]any, len(items))
+	for i, v := range items {
+		docs[i] = v
 	}
 	return docs
 }
 
 func docsFromOffsets(items []schema.MessageOffsets) []any {
-	docs := make([]any, 0, len(items))
-	for _, item := range items {
-		docs = append(docs, item)
+	docs := make([]any, len(items))
+	for i, v := range items {
+		docs[i] = v
 	}
 	return docs
 }
 
 func docsFromExtras(items []schema.MessageExtras) []any {
-	docs := make([]any, 0, len(items))
-	for _, item := range items {
-		docs = append(docs, item)
+	docs := make([]any, len(items))
+	for i, v := range items {
+		docs[i] = v
 	}
 	return docs
 }
 
 func docsFromReactions(items []schema.MessageReaction) []any {
-	docs := make([]any, 0, len(items))
-	for _, item := range items {
-		docs = append(docs, item)
+	docs := make([]any, len(items))
+	for i, v := range items {
+		docs[i] = v
 	}
 	return docs
 }
+
+// ─────────────────────────────────────────────
+// Pure utility functions
+// ─────────────────────────────────────────────
 
 func pickParticipants(rng *rand.Rand, userIDs []primitive.ObjectID, count int) []primitive.ObjectID {
 	if count > len(userIDs) {
 		count = len(userIDs)
 	}
 	indexes := rng.Perm(len(userIDs))[:count]
-	participants := make([]primitive.ObjectID, 0, count)
-	for _, index := range indexes {
-		participants = append(participants, userIDs[index])
+	result := make([]primitive.ObjectID, 0, count)
+	for _, idx := range indexes {
+		result = append(result, userIDs[idx])
 	}
-	return participants
+	return result
 }
 
 func sortedPair(a, b primitive.ObjectID) [2]primitive.ObjectID {
-	pair := []primitive.ObjectID{a, b}
-	sort.Slice(pair, func(i, j int) bool {
-		return pair[i].Hex() < pair[j].Hex()
-	})
-	return [2]primitive.ObjectID{pair[0], pair[1]}
+	if a.Hex() <= b.Hex() {
+		return [2]primitive.ObjectID{a, b}
+	}
+	return [2]primitive.ObjectID{b, a}
 }
 
 func hasUserBelowDegree(userIDs []primitive.ObjectID, degrees map[primitive.ObjectID]int, minDegree int) bool {
-	for _, userID := range userIDs {
-		if degrees[userID] < minDegree {
+	for _, uid := range userIDs {
+		if degrees[uid] < minDegree {
 			return true
 		}
 	}
@@ -979,19 +1041,19 @@ func randomBetween(rng *rand.Rand, minValue, maxValue int) int {
 }
 
 func startOfDay(t time.Time) time.Time {
-	year, month, day := t.Date()
-	return time.Date(year, month, day, 0, 0, 0, 0, t.Location())
+	y, m, d := t.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
 }
 
 func randomMessageTime(rng *rand.Rand, now time.Time, historyDays int) time.Time {
 	dayOffset := rng.Intn(historyDays)
 	dayStart := startOfDay(now).AddDate(0, 0, -dayOffset)
-	minuteOfDay := randomBetween(rng, 8*60, 22*60+45)
-	createdAt := dayStart.Add(time.Duration(minuteOfDay)*time.Minute + time.Duration(rng.Intn(60))*time.Second)
-	if createdAt.After(now) {
+	minuteOfDay := randomBetween(rng, 7*60, 23*60)
+	t := dayStart.Add(time.Duration(minuteOfDay)*time.Minute + time.Duration(rng.Intn(60))*time.Second)
+	if t.After(now) {
 		return now.Add(-time.Duration(rng.Intn(30)+1) * time.Second)
 	}
-	return createdAt
+	return t
 }
 
 func randomRecentMessageTime(rng *rand.Rand, now time.Time, orderHint int) time.Time {
@@ -1028,7 +1090,7 @@ func messagePayload(rng *rand.Rand, seq int) (string, schema.MessageType) {
 		return files[rng.Intn(len(files))], schema.MessageTypeFile
 	}
 
-	messages := []string{
+	msgs := []string{
 		"Hom nay ban co ranh luc 3 gio khong?",
 		"Minh vua xem lai roi, phan nay on do.",
 		"Toi nay an gi? Minh dang nghi bun bo hoac com tam.",
@@ -1069,9 +1131,13 @@ func messagePayload(rng *rand.Rand, seq int) (string, schema.MessageType) {
 		"Ban review giup minh phan wording trong popup nay.",
 		"Minh vua cap nhat lai UI, nhin bot bi rong hon truoc.",
 		"Neu data nhieu qua thi minh se them pagination cho nhe.",
+		"Done roi nha, ban refresh lai trang thu xem sao.",
+		"Muc nay minh se lam truoc, ban focus vao phan backend di.",
+		"Ok em, anh check lai roi bao.",
+		"Co the mo rong them tinh nang nay khong?",
+		"Meeting luc 2h chieu co nhieu nguoi tham du khong?",
 	}
-
-	return fmt.Sprintf("%s (%02d)", messages[rng.Intn(len(messages))], seq), schema.MessageTypeText
+	return fmt.Sprintf("%s (%02d)", msgs[rng.Intn(len(msgs))], seq), schema.MessageTypeText
 }
 
 func messageStatus(rng *rand.Rand) schema.MessageStatus {
