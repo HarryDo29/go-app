@@ -1,4 +1,4 @@
-package initianlize
+package initialize
 
 import (
 	routers "go-app/internal/router"
