@@ -4,6 +4,7 @@ import (
 	"go-app/global"
 	dto "go-app/internal/dto"
 	"go-app/internal/schema"
+	"go-app/pkg/mapper"
 )
 
 // INTERFACE
@@ -37,73 +38,25 @@ func (us *userService) CreateUser(userDto dto.UserDto) *dto.UserResponseDto {
 	}
 
 	result := us.userRepo.CreateUser(userDto)
-	if result == nil {
-		return nil
-	}
-
-	userRes := dto.UserResponseDto{
-		UserId:    result.ID.Hex(),
-		UserName:  result.UserName,
-		Email:     result.Email,
-		AvatarUrl: result.AvatarUrl,
-		IsActive:  &result.IsActive,
-		Role:      result.Role.Hex(),
-	}
-	return &userRes
+	return mapper.ToUserResponseDto(result)
 }
 
 // GetUser implements [IUserService].
 func (us *userService) GetUser(email string) *dto.UserResponseDto {
 	result := us.userRepo.GetUser(email)
-	if result == nil {
-		return nil
-	}
-
-	userRes := dto.UserResponseDto{
-		UserId:    result.ID.Hex(),
-		UserName:  result.UserName,
-		Email:     result.Email,
-		AvatarUrl: result.AvatarUrl,
-		IsActive:  &result.IsActive,
-		Role:      result.Role.Hex(),
-	}
-	return &userRes
+	return mapper.ToUserResponseDto(result)
 }
 
 // GetUserById implements [IUserService].
 func (us *userService) GetUserById(id string) *dto.UserResponseDto {
 	result := us.userRepo.GetUserById(id)
-	if result == nil {
-		return nil
-	}
-
-	userRes := dto.UserResponseDto{
-		UserId:    result.ID.Hex(),
-		UserName:  result.UserName,
-		Email:     result.Email,
-		AvatarUrl: result.AvatarUrl,
-		IsActive:  &result.IsActive,
-		Role:      result.Role.Hex(),
-	}
-	return &userRes
+	return mapper.ToUserResponseDto(result)
 }
 
 // UpdateUser implements [IUserService].
 func (us *userService) UpdateUser(id string, updateDto dto.UpdateUserDto) *dto.UserResponseDto {
 	result := us.userRepo.UpdateUser(id, updateDto)
-	if result == nil {
-		return nil
-	}
-
-	userRes := dto.UserResponseDto{
-		UserId:    result.ID.Hex(),
-		UserName:  result.UserName,
-		Email:     result.Email,
-		AvatarUrl: result.AvatarUrl,
-		IsActive:  &result.IsActive,
-		Role:      result.Role.Hex(),
-	}
-	return &userRes
+	return mapper.ToUserResponseDto(result)
 }
 
 // DeleteUser implements [IUserService].
@@ -158,18 +111,7 @@ func (us *userService) SearchUsers(keyword string, userId string) *[]dto.UserSea
 			connId = relation.ID
 		}
 
-		result = append(result, dto.UserSearchResponseDto{
-			UserResponseDto: dto.UserResponseDto{
-				UserId:    u.ID.Hex(),
-				UserName:  u.UserName,
-				Email:     u.Email,
-				AvatarUrl: u.AvatarUrl,
-				IsActive:  &u.IsActive,
-				Role:      u.Role.Hex(),
-			},
-			RelationStatus: status,
-			ConnectionId:   connId,
-		})
+		result = append(result, mapper.ToUserSearchResponseDto(&u, status, connId))
 	}
 
 	return &result

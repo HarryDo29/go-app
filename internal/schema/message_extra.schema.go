@@ -10,7 +10,7 @@ const CollectionNameMessageExtras = "message_extras"
 
 // MessageExtras representing collection message_extras
 // saves each message states (like read, delivered status) by each user
-type MessageExtras struct {
+type DbMessageExtras struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	UserID    primitive.ObjectID `bson:"uid" json:"uid"` // user id
 	ChannelID primitive.ObjectID `bson:"channel_id" json:"channel_id"`

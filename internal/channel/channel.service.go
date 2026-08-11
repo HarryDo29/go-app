@@ -5,6 +5,7 @@ import (
 	channelRepo "go-app/internal/channel/repo"
 	"go-app/internal/dto"
 	"go-app/internal/schema"
+	"go-app/pkg/mapper"
 	"go-app/pkg/utils"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -25,7 +26,7 @@ type IGroupRepo interface {
 }
 
 type IMessageRepo interface {
-	GetMessageByID(id primitive.ObjectID) *schema.Message
+	GetMessageByID(id primitive.ObjectID) *schema.DbMessage
 }
 
 type IChannelService interface {
@@ -77,14 +78,9 @@ func (c *ChannelService) CreateChannel(channelDto dto.CreateChannelDto) *dto.Cha
 		fmt.Println("channel ko tạo được")
 		return nil
 	}
-	resDto := dto.ChannelResponseDto{
-		ChannelId:   channel.ID.Hex(),
-		ChannelType: string(channel.ChannelType),
-		ChannelKey:  channel.ChannelKey.Hex(),
-		Subject:     nil,
-		Group:       nil,
-		LastMsg:     nil,
-		UpdatedAt:   channel.UpdatedAt,
+	resDto := mapper.ToChannelResponseDto(channel, nil, nil, nil)
+	if resDto == nil {
+		return nil
 	}
 
 	switch channel.ChannelType {
@@ -96,7 +92,7 @@ func (c *ChannelService) CreateChannel(channelDto dto.CreateChannelDto) *dto.Cha
 		// TODO: get group
 		// get group (by channel key)
 	}
-	return &resDto
+	return resDto
 }
 
 func (c *ChannelService) GetChannels(userId string, queryDto dto.ChannelQueryDto) *[]dto.ChannelResponseDto {
@@ -114,15 +110,11 @@ func (c *ChannelService) GetChannels(userId string, queryDto dto.ChannelQueryDto
 	for _, channel := range *channels {
 		cType := string(channel.ChannelType)
 
-		tmp := dto.ChannelResponseDto{
-			ChannelId:   channel.ID.Hex(),
-			ChannelType: string(channel.ChannelType),
-			ChannelKey:  channel.ChannelKey.Hex(),
-			Subject:     nil,
-			Group:       nil,
-			LastMsg:     nil,
-			UpdatedAt:   channel.UpdatedAt,
+		tmpRes := mapper.ToChannelResponseDto(&channel, nil, nil, nil)
+		if tmpRes == nil {
+			continue
 		}
+		tmp := *tmpRes
 
 		switch cType {
 		case string(schema.ChannelTypeDirect):

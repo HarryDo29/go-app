@@ -70,6 +70,7 @@ func (s *UploadService) GeneratePresignedURL(opts dto.GeneratePresignedURLReq) (
 	if err != nil {
 		return "", err
 	}
+	fmt.Println("presignUrl: ", presignedURL)
 
 	return presignedURL.String(), nil
 }

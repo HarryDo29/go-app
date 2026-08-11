@@ -554,7 +554,7 @@ func buildChannelMembers(groups []groupSeed, directs []directSeed) []schema.DbCh
 // Messages
 // ─────────────────────────────────────────────
 
-func buildMessages(cfg seedConfig, rng *rand.Rand, groups []groupSeed, directs []directSeed) ([]schema.Message, map[primitive.ObjectID]schema.Message) {
+func buildMessages(cfg seedConfig, rng *rand.Rand, groups []groupSeed, directs []directSeed) ([]schema.DbMessage, map[primitive.ObjectID]schema.DbMessage) {
 	now := time.Now()
 	participantsByChannel := channelParticipants(groups, directs)
 	channelsByUser := make(map[primitive.ObjectID][]primitive.ObjectID)
@@ -564,7 +564,7 @@ func buildMessages(cfg seedConfig, rng *rand.Rand, groups []groupSeed, directs [
 		}
 	}
 
-	messagesByChannel := make(map[primitive.ObjectID][]schema.Message, len(participantsByChannel))
+	messagesByChannel := make(map[primitive.ObjectID][]schema.DbMessage, len(participantsByChannel))
 	for uid, chIDs := range channelsByUser {
 		count := randomBetween(rng, cfg.minMessagesPerUser, cfg.maxMessagesPerUser)
 		for i := 0; i < count; i++ {
@@ -575,7 +575,7 @@ func buildMessages(cfg seedConfig, rng *rand.Rand, groups []groupSeed, directs [
 				updatedAt = now
 			}
 			content, msgType := messagePayload(rng, i+1)
-			messagesByChannel[chID] = append(messagesByChannel[chID], schema.Message{
+			messagesByChannel[chID] = append(messagesByChannel[chID], schema.DbMessage{
 				ID:        primitive.NewObjectID(),
 				ChannelID: chID,
 				FromID:    uid,
@@ -589,8 +589,8 @@ func buildMessages(cfg seedConfig, rng *rand.Rand, groups []groupSeed, directs [
 		}
 	}
 
-	messages := make([]schema.Message, 0)
-	lastByChannel := make(map[primitive.ObjectID]schema.Message, len(messagesByChannel))
+	messages := make([]schema.DbMessage, 0)
+	lastByChannel := make(map[primitive.ObjectID]schema.DbMessage, len(messagesByChannel))
 	for chID, chMsgs := range messagesByChannel {
 		sort.Slice(chMsgs, func(i, j int) bool {
 			return chMsgs[i].CreatedAt.Before(chMsgs[j].CreatedAt)
@@ -604,7 +604,7 @@ func buildMessages(cfg seedConfig, rng *rand.Rand, groups []groupSeed, directs [
 	return messages, lastByChannel
 }
 
-func updateChannelLastMessages(ctx context.Context, db *mongo.Database, lastByChannel map[primitive.ObjectID]schema.Message) error {
+func updateChannelLastMessages(ctx context.Context, db *mongo.Database, lastByChannel map[primitive.ObjectID]schema.DbMessage) error {
 	models := make([]mongo.WriteModel, 0, len(lastByChannel))
 	for chID, msg := range lastByChannel {
 		models = append(models, mongo.NewUpdateOneModel().
@@ -627,7 +627,7 @@ func updateChannelLastMessages(ctx context.Context, db *mongo.Database, lastByCh
 // Unreads & offsets
 // ─────────────────────────────────────────────
 
-func buildChannelUnreads(rng *rand.Rand, groups []groupSeed, directs []directSeed, lastByChannel map[primitive.ObjectID]schema.Message) []schema.DbChannelUnread {
+func buildChannelUnreads(rng *rand.Rand, groups []groupSeed, directs []directSeed, lastByChannel map[primitive.ObjectID]schema.DbMessage) []schema.DbChannelUnread {
 	unreads := make([]schema.DbChannelUnread, 0)
 	add := func(chID primitive.ObjectID, parts []primitive.ObjectID) {
 		msg, ok := lastByChannel[chID]
@@ -656,11 +656,11 @@ func buildChannelUnreads(rng *rand.Rand, groups []groupSeed, directs []directSee
 	return unreads
 }
 
-func buildMessageOffsets(groups []groupSeed, directs []directSeed) []schema.MessageOffsets {
-	offsets := make([]schema.MessageOffsets, 0)
+func buildMessageOffsets(groups []groupSeed, directs []directSeed) []schema.DbMessageOffsets {
+	offsets := make([]schema.DbMessageOffsets, 0)
 	add := func(chID primitive.ObjectID, parts []primitive.ObjectID) {
 		for _, uid := range parts {
-			offsets = append(offsets, schema.MessageOffsets{
+			offsets = append(offsets, schema.DbMessageOffsets{
 				ID:        primitive.NewObjectID(),
 				UserID:    uid,
 				ChannelID: chID,
@@ -683,8 +683,8 @@ func buildMessageOffsets(groups []groupSeed, directs []directSeed) []schema.Mess
 // Message extras & reactions
 // ─────────────────────────────────────────────
 
-func buildMessageExtras(rng *rand.Rand, messages []schema.Message, participantsByChannel map[primitive.ObjectID][]primitive.ObjectID) []schema.MessageExtras {
-	extras := make([]schema.MessageExtras, 0, len(messages))
+func buildMessageExtras(rng *rand.Rand, messages []schema.DbMessage, participantsByChannel map[primitive.ObjectID][]primitive.ObjectID) []schema.DbMessageExtras {
+	extras := make([]schema.DbMessageExtras, 0, len(messages))
 	for _, msg := range messages {
 		parts := participantsByChannel[msg.ChannelID]
 		if len(parts) == 0 {
@@ -692,7 +692,7 @@ func buildMessageExtras(rng *rand.Rand, messages []schema.Message, participantsB
 		}
 		viewers := pickParticipants(rng, parts, min(5, len(parts)))
 		for _, uid := range viewers {
-			extras = append(extras, schema.MessageExtras{
+			extras = append(extras, schema.DbMessageExtras{
 				ID:        primitive.NewObjectID(),
 				UserID:    uid,
 				ChannelID: msg.ChannelID,
@@ -705,9 +705,9 @@ func buildMessageExtras(rng *rand.Rand, messages []schema.Message, participantsB
 	return extras
 }
 
-func buildMessageReactions(rng *rand.Rand, messages []schema.Message, participantsByChannel map[primitive.ObjectID][]primitive.ObjectID) []schema.MessageReaction {
+func buildMessageReactions(rng *rand.Rand, messages []schema.DbMessage, participantsByChannel map[primitive.ObjectID][]primitive.ObjectID) []schema.DbMessageReaction {
 	reactionTypes := []string{"like", "love", "haha", "wow", "sad", "angry"}
-	reactions := make([]schema.MessageReaction, 0)
+	reactions := make([]schema.DbMessageReaction, 0)
 	for _, msg := range messages {
 		if rng.Intn(100) > 18 {
 			continue
@@ -717,7 +717,7 @@ func buildMessageReactions(rng *rand.Rand, messages []schema.Message, participan
 			continue
 		}
 		reactor := parts[rng.Intn(len(parts))]
-		reactions = append(reactions, schema.MessageReaction{
+		reactions = append(reactions, schema.DbMessageReaction{
 			ID:             primitive.NewObjectID(),
 			MsgID:          msg.ID,
 			TypeOfReaction: reactionTypes[rng.Intn(len(reactionTypes))],
@@ -843,9 +843,9 @@ func loadExistingChannelSequences(ctx context.Context, db *mongo.Database) (map[
 	return seqs, nil
 }
 
-func buildAppendedMessages(rng *rand.Rand, userIDs []primitive.ObjectID, channelsByUser map[primitive.ObjectID][]primitive.ObjectID, channelSeqs map[primitive.ObjectID]int64, messagesPerUser int) ([]schema.Message, map[primitive.ObjectID]schema.Message) {
+func buildAppendedMessages(rng *rand.Rand, userIDs []primitive.ObjectID, channelsByUser map[primitive.ObjectID][]primitive.ObjectID, channelSeqs map[primitive.ObjectID]int64, messagesPerUser int) ([]schema.DbMessage, map[primitive.ObjectID]schema.DbMessage) {
 	now := time.Now()
-	messagesByChannel := make(map[primitive.ObjectID][]schema.Message)
+	messagesByChannel := make(map[primitive.ObjectID][]schema.DbMessage)
 	for _, uid := range userIDs {
 		chIDs := channelsByUser[uid]
 		if len(chIDs) == 0 {
@@ -859,7 +859,7 @@ func buildAppendedMessages(rng *rand.Rand, userIDs []primitive.ObjectID, channel
 				updatedAt = now
 			}
 			content, msgType := messagePayload(rng, i+1)
-			messagesByChannel[chID] = append(messagesByChannel[chID], schema.Message{
+			messagesByChannel[chID] = append(messagesByChannel[chID], schema.DbMessage{
 				ID:        primitive.NewObjectID(),
 				ChannelID: chID,
 				FromID:    uid,
@@ -872,8 +872,8 @@ func buildAppendedMessages(rng *rand.Rand, userIDs []primitive.ObjectID, channel
 			})
 		}
 	}
-	messages := make([]schema.Message, 0)
-	lastByChannel := make(map[primitive.ObjectID]schema.Message)
+	messages := make([]schema.DbMessage, 0)
+	lastByChannel := make(map[primitive.ObjectID]schema.DbMessage)
 	for chID, chMsgs := range messagesByChannel {
 		sort.Slice(chMsgs, func(i, j int) bool { return chMsgs[i].CreatedAt.Before(chMsgs[j].CreatedAt) })
 		nextSeq := channelSeqs[chID] + 1
@@ -887,7 +887,7 @@ func buildAppendedMessages(rng *rand.Rand, userIDs []primitive.ObjectID, channel
 	return messages, lastByChannel
 }
 
-func updateExistingChannelUnreads(ctx context.Context, db *mongo.Database, rng *rand.Rand, lastByChannel map[primitive.ObjectID]schema.Message, participantsByChannel map[primitive.ObjectID][]primitive.ObjectID) error {
+func updateExistingChannelUnreads(ctx context.Context, db *mongo.Database, rng *rand.Rand, lastByChannel map[primitive.ObjectID]schema.DbMessage, participantsByChannel map[primitive.ObjectID][]primitive.ObjectID) error {
 	models := make([]mongo.WriteModel, 0)
 	for chID, lastMsg := range lastByChannel {
 		for _, uid := range participantsByChannel[chID] {
@@ -961,7 +961,7 @@ func docsFromChannelMembers(items []schema.DbChannelMember) []any {
 	return docs
 }
 
-func docsFromMessages(items []schema.Message) []any {
+func docsFromMessages(items []schema.DbMessage) []any {
 	docs := make([]any, len(items))
 	for i, v := range items {
 		docs[i] = v
@@ -977,7 +977,7 @@ func docsFromUnreads(items []schema.DbChannelUnread) []any {
 	return docs
 }
 
-func docsFromOffsets(items []schema.MessageOffsets) []any {
+func docsFromOffsets(items []schema.DbMessageOffsets) []any {
 	docs := make([]any, len(items))
 	for i, v := range items {
 		docs[i] = v
@@ -985,7 +985,7 @@ func docsFromOffsets(items []schema.MessageOffsets) []any {
 	return docs
 }
 
-func docsFromExtras(items []schema.MessageExtras) []any {
+func docsFromExtras(items []schema.DbMessageExtras) []any {
 	docs := make([]any, len(items))
 	for i, v := range items {
 		docs[i] = v
@@ -993,7 +993,7 @@ func docsFromExtras(items []schema.MessageExtras) []any {
 	return docs
 }
 
-func docsFromReactions(items []schema.MessageReaction) []any {
+func docsFromReactions(items []schema.DbMessageReaction) []any {
 	docs := make([]any, len(items))
 	for i, v := range items {
 		docs[i] = v

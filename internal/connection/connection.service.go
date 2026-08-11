@@ -5,6 +5,7 @@ import (
 	dto "go-app/internal/dto"
 	"go-app/internal/schema"
 	"go-app/internal/user"
+	"go-app/pkg/mapper"
 	"go-app/pkg/utils"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -91,18 +92,7 @@ func (c *ConnectionService) GetConnection(participant_ids [2]string) *dto.Connec
 	}
 	// lấy connection theo participantIDs
 	connection := c.connectionRepo.GetConnection(participantIDs)
-	if connection == nil {
-		return nil
-	}
-	// convert sang response dto
-	return &dto.ConnectionResponseDto{
-		ConnectionId:   connection.ID.Hex(),
-		RequesterId:    connection.RequesterID.Hex(),
-		ReceiverId:     connection.ReceiverID.Hex(),
-		ParticipantIDs: participant_ids,
-		Status:         string(connection.Status),
-		AcceptedAt:     connection.AcceptedAt,
-	}
+	return mapper.ToConnectionResponseDto(connection)
 }
 
 // GetConnectionByUserId implements [IConnectionService].

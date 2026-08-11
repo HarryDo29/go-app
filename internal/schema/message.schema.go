@@ -25,7 +25,7 @@ const (
 )
 
 // Message representing collection message
-type Message struct {
+type DbMessage struct {
 	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	ChannelID      primitive.ObjectID `bson:"channel_id" json:"channel_id"`
 	FromID         primitive.ObjectID `bson:"from_id" json:"from_id"`

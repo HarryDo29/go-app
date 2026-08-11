@@ -13,18 +13,18 @@ import (
 )
 
 type IMessageExtraRepo interface {
-	CreateMessageExtra(createDto dto.CreateMessageExtraDto) *schema.MessageExtras
-	GetMessageExtraByID(id primitive.ObjectID) *schema.MessageExtras
-	GetMessageExtrasByMsg(msgId primitive.ObjectID) *[]schema.MessageExtras
-	GetMessageExtrasByUser(userId primitive.ObjectID, channelId primitive.ObjectID) *[]schema.MessageExtras
-	UpdateMessageExtra(id primitive.ObjectID, updateDto dto.UpdateMessageExtraDto) *schema.MessageExtras
+	CreateMessageExtra(createDto dto.CreateMessageExtraDto) *schema.DbMessageExtras
+	GetMessageExtraByID(id primitive.ObjectID) *schema.DbMessageExtras
+	GetMessageExtrasByMsg(msgId primitive.ObjectID) *[]schema.DbMessageExtras
+	GetMessageExtrasByUser(userId primitive.ObjectID, channelId primitive.ObjectID) *[]schema.DbMessageExtras
+	UpdateMessageExtra(id primitive.ObjectID, updateDto dto.UpdateMessageExtraDto) *schema.DbMessageExtras
 	DeleteMessageExtra(id primitive.ObjectID) bool
 }
 
 type MessageExtraRepo struct{}
 
 // CreateMessageExtra implements [IMessageExtraRepo].
-func (r *MessageExtraRepo) CreateMessageExtra(createDto dto.CreateMessageExtraDto) *schema.MessageExtras {
+func (r *MessageExtraRepo) CreateMessageExtra(createDto dto.CreateMessageExtraDto) *schema.DbMessageExtras {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -41,7 +41,7 @@ func (r *MessageExtraRepo) CreateMessageExtra(createDto dto.CreateMessageExtraDt
 		return nil
 	}
 
-	extra := &schema.MessageExtras{
+	extra := &schema.DbMessageExtras{
 		ID:        primitive.NewObjectID(),
 		UserID:    userId,
 		ChannelID: channelId,
@@ -59,11 +59,11 @@ func (r *MessageExtraRepo) CreateMessageExtra(createDto dto.CreateMessageExtraDt
 }
 
 // GetMessageExtraByID implements [IMessageExtraRepo].
-func (r *MessageExtraRepo) GetMessageExtraByID(id primitive.ObjectID) *schema.MessageExtras {
+func (r *MessageExtraRepo) GetMessageExtraByID(id primitive.ObjectID) *schema.DbMessageExtras {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var extra *schema.MessageExtras
+	var extra *schema.DbMessageExtras
 	collection := global.Mgo.Database.Collection(schema.CollectionNameMessageExtras)
 	collection.FindOne(ctx, bson.M{"_id": id}).Decode(&extra)
 	if extra == nil {
@@ -74,11 +74,11 @@ func (r *MessageExtraRepo) GetMessageExtraByID(id primitive.ObjectID) *schema.Me
 
 // GetMessageExtrasByMsg implements [IMessageExtraRepo].
 // Lấy tất cả trạng thái đọc/nhận của một tin nhắn.
-func (r *MessageExtraRepo) GetMessageExtrasByMsg(msgId primitive.ObjectID) *[]schema.MessageExtras {
+func (r *MessageExtraRepo) GetMessageExtrasByMsg(msgId primitive.ObjectID) *[]schema.DbMessageExtras {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var extras []schema.MessageExtras
+	var extras []schema.DbMessageExtras
 	collection := global.Mgo.Database.Collection(schema.CollectionNameMessageExtras)
 	cursor, err := collection.Find(ctx, bson.M{"msg_id": msgId})
 	if err != nil {
@@ -97,7 +97,7 @@ func (r *MessageExtraRepo) GetMessageExtrasByMsg(msgId primitive.ObjectID) *[]sc
 
 // GetMessageExtrasByUser implements [IMessageExtraRepo].
 // Lấy tất cả message extras của một user trong một channel.
-func (r *MessageExtraRepo) GetMessageExtrasByUser(userId primitive.ObjectID, channelId primitive.ObjectID) *[]schema.MessageExtras {
+func (r *MessageExtraRepo) GetMessageExtrasByUser(userId primitive.ObjectID, channelId primitive.ObjectID) *[]schema.DbMessageExtras {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -106,7 +106,7 @@ func (r *MessageExtraRepo) GetMessageExtrasByUser(userId primitive.ObjectID, cha
 		"channel_id": channelId,
 	}
 
-	var extras []schema.MessageExtras
+	var extras []schema.DbMessageExtras
 	collection := global.Mgo.Database.Collection(schema.CollectionNameMessageExtras)
 	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
@@ -124,7 +124,7 @@ func (r *MessageExtraRepo) GetMessageExtrasByUser(userId primitive.ObjectID, cha
 }
 
 // UpdateMessageExtra implements [IMessageExtraRepo].
-func (r *MessageExtraRepo) UpdateMessageExtra(id primitive.ObjectID, updateDto dto.UpdateMessageExtraDto) *schema.MessageExtras {
+func (r *MessageExtraRepo) UpdateMessageExtra(id primitive.ObjectID, updateDto dto.UpdateMessageExtraDto) *schema.DbMessageExtras {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -138,7 +138,7 @@ func (r *MessageExtraRepo) UpdateMessageExtra(id primitive.ObjectID, updateDto d
 		return nil
 	}
 
-	var extra *schema.MessageExtras
+	var extra *schema.DbMessageExtras
 	collection := global.Mgo.Database.Collection(schema.CollectionNameMessageExtras)
 	collection.FindOneAndUpdate(
 		ctx,

@@ -14,17 +14,17 @@ import (
 )
 
 type IMessageRepo interface {
-	CreateMessage(userId string, createDto dto.CreateMessageDto) *schema.Message
-	GetMessageByID(id primitive.ObjectID) *schema.Message
-	GetMessagesByChannel(channelId primitive.ObjectID, limit int64, beforeSeq int64) *[]schema.Message
-	UpdateMessage(id primitive.ObjectID, updateDto dto.UpdateMessageDto) *schema.Message
+	CreateMessage(userId string, createDto dto.CreateMessageDto) *schema.DbMessage
+	GetMessageByID(id primitive.ObjectID) *schema.DbMessage
+	GetMessagesByChannel(channelId primitive.ObjectID, limit int64, beforeSeq int64) *[]schema.DbMessage
+	UpdateMessage(id primitive.ObjectID, updateDto dto.UpdateMessageDto) *schema.DbMessage
 	DeleteMessage(id primitive.ObjectID) bool
 }
 
 type MessageRepo struct{}
 
 // CreateMessage implements [IMessageRepo].
-func (r *MessageRepo) CreateMessage(userId string, createDto dto.CreateMessageDto) *schema.Message {
+func (r *MessageRepo) CreateMessage(userId string, createDto dto.CreateMessageDto) *schema.DbMessage {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -37,7 +37,7 @@ func (r *MessageRepo) CreateMessage(userId string, createDto dto.CreateMessageDt
 		return nil
 	}
 
-	msg := &schema.Message{
+	msg := &schema.DbMessage{
 		ID:        primitive.NewObjectID(),
 		ChannelID: channelId,
 		FromID:    fromId,
@@ -68,11 +68,11 @@ func (r *MessageRepo) CreateMessage(userId string, createDto dto.CreateMessageDt
 }
 
 // GetMessageByID implements [IMessageRepo].
-func (r *MessageRepo) GetMessageByID(id primitive.ObjectID) *schema.Message {
+func (r *MessageRepo) GetMessageByID(id primitive.ObjectID) *schema.DbMessage {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var msg *schema.Message
+	var msg *schema.DbMessage
 	collection := global.Mgo.Database.Collection(schema.CollectionNameMessage)
 	collection.FindOne(ctx, bson.M{"_id": id}).Decode(&msg)
 	if msg == nil {
@@ -88,7 +88,7 @@ func (r *MessageRepo) GetMessagesByChannel(
 	channelId primitive.ObjectID,
 	limit int64,
 	beforeSeq int64,
-) *[]schema.Message {
+) *[]schema.DbMessage {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -119,7 +119,7 @@ func (r *MessageRepo) GetMessagesByChannel(
 	}
 	defer cursor.Close(ctx)
 
-	var messages []schema.Message
+	var messages []schema.DbMessage
 	if err = cursor.All(ctx, &messages); err != nil {
 		return nil
 	}
@@ -133,7 +133,7 @@ func (r *MessageRepo) GetMessagesByChannel(
 func (r *MessageRepo) UpdateMessage(
 	id primitive.ObjectID,
 	updateDto dto.UpdateMessageDto,
-) *schema.Message {
+) *schema.DbMessage {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -149,7 +149,7 @@ func (r *MessageRepo) UpdateMessage(
 	}
 	update["updated_at"] = time.Now() // cập nhật lại
 
-	var msg *schema.Message
+	var msg *schema.DbMessage
 	collection := global.Mgo.Database.Collection(schema.CollectionNameMessage)
 	collection.FindOneAndUpdate(
 		ctx,

@@ -6,14 +6,13 @@ import (
 	"go-app/pkg/response"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type IWsHub interface {
 	Notify(userId string, event string, payload interface{}) bool
+	BroadcastToUserIds(userIds []string, event string, payload interface{})
 }
 
 type MessageController struct {
@@ -54,34 +53,17 @@ func (mc *MessageController) CreateMessage(c *gin.Context) {
 		return
 	}
 
-	msg, err := mc.messageService.CreateMessage(userId, msgDto)
+	messageResponse, err := mc.messageService.CreateMessage(userId, msgDto)
 	if err != nil {
 		response.ErrorResponse(c, response.ErrCodeCreateFailed)
 		return
 	}
 
-	messageResponse := dto.MessageResponseDto{
-		MsgId:     msg.ID.Hex(),
-		ChannelId: msg.ChannelID.Hex(),
-		FromId:    msg.FromID.Hex(),
-		Content:   msg.Content,
-		MsgType:   string(msg.MsgType),
-		MsgSeq:    msg.MsgSeq,
-		Status:    string(msg.Status),
-		IsDelete:  msg.IsDelete,
-		CreatedAt: msg.CreatedAt.Format(time.RFC3339),
-	}
-	if msg.RepliedToMsgID != primitive.NilObjectID {
-		messageResponse.RepliedToMsgId = msg.RepliedToMsgID.Hex()
-	}
-
 	// Bắn realtime qua WebSocket đến tất cả member trong channel
 	memberIds := mc.messageService.GetMemberIds(msgDto.ChannelId)
-	for _, memberId := range memberIds {
-		mc.hub.Notify(memberId, websocket.EventNewMessage, messageResponse)
-	}
+	mc.hub.BroadcastToUserIds(memberIds, websocket.EventNewMessage, messageResponse)
 
-	response.SuccessResponse(c, response.ErrCodeSuccess, msg)
+	response.SuccessResponse(c, response.ErrCodeSuccess, messageResponse)
 }
 
 // PUT /api/messages/:id
@@ -113,33 +95,15 @@ func (mc *MessageController) UpdateMessage(c *gin.Context) {
 		return
 	}
 
-	msg, err := mc.messageService.UpdateMessage(msgId, userId, updateMsgDto)
+	messageResponse, err := mc.messageService.UpdateMessage(msgId, userId, updateMsgDto)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Map to MessageResponseDto
-	messageResponse := &dto.MessageResponseDto{
-		MsgId:     msg.ID.Hex(),
-		ChannelId: msg.ChannelID.Hex(),
-		FromId:    msg.FromID.Hex(),
-		Content:   msg.Content,
-		MsgType:   string(msg.MsgType),
-		MsgSeq:    msg.MsgSeq,
-		Status:    string(msg.Status),
-		IsDelete:  msg.IsDelete,
-		CreatedAt: msg.CreatedAt.Format(time.RFC3339),
-	}
-	if msg.RepliedToMsgID != primitive.NilObjectID {
-		messageResponse.RepliedToMsgId = msg.RepliedToMsgID.Hex()
-	}
-
 	// Broadcast update_message
 	memberIds := mc.messageService.GetMemberIds(messageResponse.ChannelId)
-	for _, memberId := range memberIds {
-		mc.hub.Notify(memberId, websocket.EventUpdatedMessage, messageResponse)
-	}
+	mc.hub.BroadcastToUserIds(memberIds, websocket.EventUpdatedMessage, messageResponse)
 
 	c.JSON(http.StatusOK, messageResponse)
 }
@@ -165,9 +129,7 @@ func (mc *MessageController) RecallMessage(c *gin.Context) {
 
 	// Broadcast recall_message
 	memberIds := mc.messageService.GetMemberIds(msg.ChannelId)
-	for _, memberId := range memberIds {
-		mc.hub.Notify(memberId, websocket.EventRecallMessage, msg)
-	}
+	mc.hub.BroadcastToUserIds(memberIds, websocket.EventRecallMessage, msg)
 
 	response.SuccessResponse(c, response.ErrCodeSuccess, gin.H{"msg": "Recalled msg successfully"})
 }

@@ -10,7 +10,7 @@ const CollectionNameMessageOffsets = "message_offsets"
 
 // MessageOffsets representing collection message_offsets
 // saves each message conversation deleted offset by each user
-type MessageOffsets struct {
+type DbMessageOffsets struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	UserID    primitive.ObjectID `bson:"uid" json:"uid"` // user id
 	ChannelID primitive.ObjectID `bson:"channel_id" json:"channel_id"`

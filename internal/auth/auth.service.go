@@ -7,6 +7,7 @@ import (
 	rf "go-app/internal/refresh-token"
 	roleRepo "go-app/internal/role"
 	user "go-app/internal/user"
+	"go-app/pkg/mapper"
 	"go-app/pkg/utils"
 	"sync"
 	"time"
@@ -64,16 +65,16 @@ func (a *authService) Login(loginDto *dto.LoginDto) dto.LoginResponseDto {
 	}
 	result := a.rfService.CreateRefreshToken(createDto)
 
+	userRes := mapper.ToUserResponseDto(user)
+	if userRes == nil {
+		userRes = &dto.UserResponseDto{}
+	}
+	userRes.Role = roleName // override Hex with human readable roleName if present
+
 	return dto.LoginResponseDto{
 		AccessToken:  result.AccToken,
 		RefreshToken: result.RfToken,
-		User: dto.UserResponseDto{
-			UserId:   userIDStr,
-			UserName: user.UserName,
-			Email:    user.Email,
-			Role:     roleName,
-			IsActive: &user.IsActive,
-		},
+		User:         *userRes,
 	}
 }
 

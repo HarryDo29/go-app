@@ -13,18 +13,18 @@ import (
 )
 
 type IMessageOffsetRepo interface {
-	CreateMessageOffset(createDto dto.CreateMessageOffsetDto) *schema.MessageOffsets
-	GetMessageOffsetByID(id primitive.ObjectID) *schema.MessageOffsets
-	GetMessageOffsetByUserAndChannel(userId primitive.ObjectID, channelId primitive.ObjectID) *schema.MessageOffsets
-	GetMessageOffsetsByUser(userId primitive.ObjectID) *[]schema.MessageOffsets
-	UpdateMessageOffset(id primitive.ObjectID, updateDto dto.UpdateMessageOffsetDto) *schema.MessageOffsets
+	CreateMessageOffset(createDto dto.CreateMessageOffsetDto) *schema.DbMessageOffsets
+	GetMessageOffsetByID(id primitive.ObjectID) *schema.DbMessageOffsets
+	GetMessageOffsetByUserAndChannel(userId primitive.ObjectID, channelId primitive.ObjectID) *schema.DbMessageOffsets
+	GetMessageOffsetsByUser(userId primitive.ObjectID) *[]schema.DbMessageOffsets
+	UpdateMessageOffset(id primitive.ObjectID, updateDto dto.UpdateMessageOffsetDto) *schema.DbMessageOffsets
 	DeleteMessageOffset(id primitive.ObjectID) bool
 }
 
 type MessageOffsetRepo struct{}
 
 // CreateMessageOffset implements [IMessageOffsetRepo].
-func (r *MessageOffsetRepo) CreateMessageOffset(createDto dto.CreateMessageOffsetDto) *schema.MessageOffsets {
+func (r *MessageOffsetRepo) CreateMessageOffset(createDto dto.CreateMessageOffsetDto) *schema.DbMessageOffsets {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -37,7 +37,7 @@ func (r *MessageOffsetRepo) CreateMessageOffset(createDto dto.CreateMessageOffse
 		return nil
 	}
 
-	offset := &schema.MessageOffsets{
+	offset := &schema.DbMessageOffsets{
 		ID:        primitive.NewObjectID(),
 		UserID:    userId,
 		ChannelID: channelId,
@@ -55,11 +55,11 @@ func (r *MessageOffsetRepo) CreateMessageOffset(createDto dto.CreateMessageOffse
 }
 
 // GetMessageOffsetByID implements [IMessageOffsetRepo].
-func (r *MessageOffsetRepo) GetMessageOffsetByID(id primitive.ObjectID) *schema.MessageOffsets {
+func (r *MessageOffsetRepo) GetMessageOffsetByID(id primitive.ObjectID) *schema.DbMessageOffsets {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var offset *schema.MessageOffsets
+	var offset *schema.DbMessageOffsets
 	collection := global.Mgo.Database.Collection(schema.CollectionNameMessageOffsets)
 	collection.FindOne(ctx, bson.M{"_id": id}).Decode(&offset)
 	if offset == nil {
@@ -73,11 +73,11 @@ func (r *MessageOffsetRepo) GetMessageOffsetByID(id primitive.ObjectID) *schema.
 func (r *MessageOffsetRepo) GetMessageOffsetByUserAndChannel(
 	userId primitive.ObjectID,
 	channelId primitive.ObjectID,
-) *schema.MessageOffsets {
+) *schema.DbMessageOffsets {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var offset *schema.MessageOffsets
+	var offset *schema.DbMessageOffsets
 	collection := global.Mgo.Database.Collection(schema.CollectionNameMessageOffsets)
 	collection.FindOne(ctx, bson.M{
 		"uid":        userId,
@@ -91,11 +91,11 @@ func (r *MessageOffsetRepo) GetMessageOffsetByUserAndChannel(
 
 // GetMessageOffsetsByUser implements [IMessageOffsetRepo].
 // Lấy tất cả offsets của một user trên nhiều channel.
-func (r *MessageOffsetRepo) GetMessageOffsetsByUser(userId primitive.ObjectID) *[]schema.MessageOffsets {
+func (r *MessageOffsetRepo) GetMessageOffsetsByUser(userId primitive.ObjectID) *[]schema.DbMessageOffsets {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var offsets []schema.MessageOffsets
+	var offsets []schema.DbMessageOffsets
 	collection := global.Mgo.Database.Collection(schema.CollectionNameMessageOffsets)
 	cursor, err := collection.Find(ctx, bson.M{"uid": userId})
 	if err != nil {
@@ -116,7 +116,7 @@ func (r *MessageOffsetRepo) GetMessageOffsetsByUser(userId primitive.ObjectID) *
 func (r *MessageOffsetRepo) UpdateMessageOffset(
 	id primitive.ObjectID,
 	updateDto dto.UpdateMessageOffsetDto,
-) *schema.MessageOffsets {
+) *schema.DbMessageOffsets {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -133,7 +133,7 @@ func (r *MessageOffsetRepo) UpdateMessageOffset(
 		return nil
 	}
 
-	var offset *schema.MessageOffsets
+	var offset *schema.DbMessageOffsets
 	collection := global.Mgo.Database.Collection(schema.CollectionNameMessageOffsets)
 	collection.FindOneAndUpdate(
 		ctx,

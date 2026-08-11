@@ -1,9 +1,9 @@
 package global
 
 import (
+	"go-app/internal/websocket"
 	"go-app/pkg/logger"
 	"go-app/pkg/setting"
-	"go-app/internal/websocket"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/patrickmn/go-cache"

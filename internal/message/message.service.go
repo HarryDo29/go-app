@@ -1,15 +1,22 @@
 package message
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"go-app/global"
 	dto "go-app/internal/dto"
 	messageRepo "go-app/internal/message/repo"
 	"go-app/internal/schema"
+	"go-app/pkg/mapper"
 	"go-app/pkg/utils"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+var ctx = context.Background()
 
 type IChannelRepo interface {
 	UpdateChannel(channelId primitive.ObjectID, updateDto dto.UpdateChannelDto) *schema.DbChannel
@@ -25,8 +32,8 @@ type IMessageService interface {
 	// Lấy danh sách userId của tất cả member active trong channel (dùng để bắn realtime)
 	GetMemberIds(channelId string) []string
 	// Message CRUD
-	CreateMessage(userId string, createDto dto.CreateMessageDto) (*schema.Message, error)
-	UpdateMessage(msgId string, userId string, updateDto dto.UpdateMessageDto) (*schema.Message, error)
+	CreateMessage(userId string, createDto dto.CreateMessageDto) (*dto.MessageResponseDto, error)
+	UpdateMessage(msgId string, userId string, updateDto dto.UpdateMessageDto) (*dto.MessageResponseDto, error)
 
 	// Thu hồi tin nhắn: chỉ người gửi được dùng, soft-delete message → mọi người đều thấy bị thu hồi
 	RecallMessage(msgId string, userId string) *dto.MessageResponseDto
@@ -42,7 +49,7 @@ type IMessageService interface {
 	GetMessageByID(msgId string) (*dto.MessageResponseDto, error)
 	GetMessagesByChannel(channelId string, userId string, limit int64, beforeSeq int64) (*[]dto.MessageResponseDto, error)
 	GetDeletedMessageIDsByUser(userId string, channelId string) ([]string, error)
-	GetChatOffset(userId string, channelId string) (*schema.MessageOffsets, error)
+	GetChatOffset(userId string, channelId string) (*schema.DbMessageOffsets, error)
 }
 
 type MessageService struct {
@@ -78,9 +85,19 @@ func (s *MessageService) CheckUserInChannel(channelId string, userId string) boo
 	return s.channelMemberRepo.CheckUserInChannel(cID, uID)
 }
 
-// GetMemberIds trả về danh sách userId (string) của tất cả member active trong channel
+// GetMemberIds return userIds list (string) of all active members in channel
 // Dùng để bắn realtime qua WebSocket sau khi tạo/cập nhật tin nhắn
 func (s *MessageService) GetMemberIds(channelId string) []string {
+	// get channel members id in redis first
+	redisKey := fmt.Sprintf("channel:%s:users", channelId)
+	if jsonData, err := global.Rdb.Get(ctx, redisKey).Result(); err == nil {
+		var ids []string
+		if err := json.Unmarshal([]byte(jsonData), &ids); err != nil {
+			panic(err)
+		}
+		return ids
+	}
+
 	cID := utils.ObjectIDFromHex(channelId)
 	if cID == primitive.NilObjectID {
 		return nil
@@ -95,11 +112,14 @@ func (s *MessageService) GetMemberIds(channelId string) []string {
 	for _, m := range *members {
 		ids = append(ids, m.UserID.Hex())
 	}
+
+	jsonData, _ := json.Marshal(ids)
+	global.Rdb.Set(ctx, redisKey, jsonData, time.Minute*5)
 	return ids
 }
 
 // CreateMessage tạo một tin nhắn mới trong channel.
-func (s *MessageService) CreateMessage(userId string, createDto dto.CreateMessageDto) (*schema.Message, error) {
+func (s *MessageService) CreateMessage(userId string, createDto dto.CreateMessageDto) (*dto.MessageResponseDto, error) {
 	if !s.CheckUserInChannel(createDto.ChannelId, userId) {
 		return nil, errors.New("permission denied: user is not a member of this channel")
 	}
@@ -117,7 +137,7 @@ func (s *MessageService) CreateMessage(userId string, createDto dto.CreateMessag
 	if channel == nil {
 		return nil, errors.New("failed to update channel")
 	}
-	return msg, nil
+	return mapper.ToMessageResponseDto(msg), nil
 }
 
 // UpdateMessage chỉnh sửa nội dung hoặc trạng thái của một tin nhắn.
@@ -126,7 +146,7 @@ func (s *MessageService) UpdateMessage(
 	msgId string,
 	userId string,
 	updateDto dto.UpdateMessageDto,
-) (*schema.Message, error) {
+) (*dto.MessageResponseDto, error) {
 	id := utils.ObjectIDFromHex(msgId)
 	if id == primitive.NilObjectID {
 		return nil, errors.New("invalid message id")
@@ -154,7 +174,7 @@ func (s *MessageService) UpdateMessage(
 	if updated == nil {
 		return nil, errors.New("failed to update message")
 	}
-	return updated, nil
+	return mapper.ToMessageResponseDto(updated), nil
 }
 
 // RecallMessage thu hồi một tin nhắn do chính user gửi.
@@ -184,19 +204,11 @@ func (s *MessageService) RecallMessage(msgId string, userId string) *dto.Message
 		return nil
 	}
 
-	// Trả về DTO của message đã bị xoá
-	return &dto.MessageResponseDto{
-		MsgId:          existing.ID.Hex(),
-		ChannelId:      existing.ChannelID.Hex(),
-		FromId:         existing.FromID.Hex(),
-		Content:        existing.Content,
-		MsgType:        string(existing.MsgType),
-		MsgSeq:         existing.MsgSeq,
-		Status:         string(existing.Status),
-		IsDelete:       true,
-		RepliedToMsgId: existing.RepliedToMsgID.Hex(),
-		CreatedAt:      existing.CreatedAt.Format(time.RFC3339),
+	res := mapper.ToMessageResponseDto(existing)
+	if res != nil {
+		res.IsDelete = true
 	}
+	return res
 }
 
 // HideMessageForMe ẩn một tin nhắn chỉ với phía user hiện tại.
@@ -454,7 +466,7 @@ func (s *MessageService) GetDeletedMessageIDsByUser(userId string, channelId str
 }
 
 // GetChatOffset trả về thông tin offset (điểm xóa đoạn chat) của user trong channel.
-func (s *MessageService) GetChatOffset(userId string, channelId string) (*schema.MessageOffsets, error) {
+func (s *MessageService) GetChatOffset(userId string, channelId string) (*schema.DbMessageOffsets, error) {
 	userObjID := utils.ObjectIDFromHex(userId)
 	if userObjID == primitive.NilObjectID {
 		return nil, errors.New("invalid user id")

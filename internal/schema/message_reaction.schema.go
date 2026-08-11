@@ -11,7 +11,7 @@ import (
 const CollectionNameMessReaction = "message_reactions"
 
 // MessReaction representing collection mess_reaction
-type MessageReaction struct {
+type DbMessageReaction struct {
 	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	MsgID          primitive.ObjectID `bson:"msg_id" json:"msg_id"`
 	TypeOfReaction string             `bson:"type_of_reaction" json:"type_of_reaction"`

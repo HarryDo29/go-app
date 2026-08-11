@@ -6,6 +6,7 @@ import (
 	dto "go-app/internal/dto"
 	"go-app/internal/schema"
 	"go-app/internal/user"
+	"go-app/pkg/mapper"
 	"go-app/pkg/utils"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -39,13 +40,9 @@ func (gc *GroupService) CreateGroup(groupDto dto.CreateGroupDto) *dto.ChannelRes
 		return nil
 	}
 
-	groupRes := &dto.GroupResponseDto{
-		GroupId:     group.ID.Hex(),
-		GroupName:   group.Name,
-		OwnerId:     group.OwnerID.Hex(),
-		MemberCount: group.MemberCount,
-		Status:      group.Status,
-		Members:     nil,
+	groupRes := mapper.ToGroupResponseDto(group, nil)
+	if groupRes == nil {
+		return nil
 	}
 
 	// tạo channel ứng với group_id
@@ -102,13 +99,7 @@ func (gc *GroupService) UpdateGroup(groupId string, updateDto dto.UpdateGroupDto
 		return nil
 	}
 	group := gc.groupRepo.UpdateGroup(id, updateDto)
-	return &dto.GroupResponseDto{
-		GroupId:     group.ID.Hex(),
-		GroupName:   group.Name,
-		OwnerId:     group.OwnerID.Hex(),
-		MemberCount: group.MemberCount,
-		Status:      group.Status,
-	}
+	return mapper.ToGroupResponseDto(group, nil)
 }
 
 func NewGroupService(

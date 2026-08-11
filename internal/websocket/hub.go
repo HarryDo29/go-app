@@ -1,8 +1,8 @@
 package websocket
 
 type Hub struct {
-	// clients lưu trữ: map[UserId] map[ConnectionId] *Client
-	// Hỗ trợ 1 user có thể kết nối trên nhiều thiết bị (nhiều tab/app) cùng lúc
+	// map[UserId] map[ConnectionId] *Client
+	// support 1 user can use multi-devices in a time
 	clients map[string]map[string]*Client
 
 	register   chan *Client // khi user online (kết nối) --> đưa channel register để xử lý
@@ -92,4 +92,18 @@ func (h *Hub) Notify(userId string, event string, payload interface{}) bool {
 		Event:   event,
 		Payload: payload,
 	})
+}
+
+// BroadcastToUserIds notifies all active member users in a channel
+func (h *Hub) BroadcastToUserIds(userIds []string, event string, payload interface{}) {
+	for _, userId := range userIds {
+		if !h.IsOnline(userId) {
+			continue
+		}
+
+		h.SendToUser(userId, WsResponse{
+			Event:   event,
+			Payload: payload,
+		})
+	}
 }
