@@ -1,10 +1,10 @@
-# Thiết kế Hệ thống Chat App Realtime bằng Go & WebSocket
+# Real-Time Chat App System Design using Go & WebSocket
 
-Tài liệu này mô tả kiến trúc và thiết kế chi tiết cho một hệ thống chat realtime sử dụng Golang và WebSocket, phục vụ mục đích nhắn tin trực tiếp giữa các người dùng (User-to-User).
+This document describes the detailed architecture and design for a real-time chat system using Golang and WebSocket, serving direct user-to-user (1-1) and group messaging.
 
-## 1. Tổng quan Kiến trúc (Architecture Overview)
+## 1. Architecture Overview
 
-Hệ thống sẽ sử dụng mô hình **Hub & Spoke** phổ biến trong việc quản lý kết nối WebSocket ở Golang.
+The system utilizes the popular **Hub & Spoke** model for managing WebSocket connections in Golang.
 
 ```mermaid
 graph TD
@@ -13,7 +13,7 @@ graph TD
     Client3[User C Client] <-->|WebSocket| Server
 
     subgraph Go Chat Server
-        Hub[Hub - Quản lý Connections]
+        Hub[Hub - Connection Manager]
         ClientConn1[Client A Connection]
         ClientConn2[Client B Connection]
         ClientConn3[Client C Connection]
@@ -26,39 +26,39 @@ graph TD
     Server <--> Database[(Database: Redis/PostgreSQL)]
 ```
 
-## 2. Các Thành phần Chính (Core Components)
+## 2. Core Components
 
-### 2.1. Client (Trình duyệt / Mobile App)
+### 2.1. Client (Browser / Mobile App)
 
-- Mở kết nối WebSocket (`ws://` hoặc `wss://`) tới server.
-- Lắng nghe sự kiện để hiển thị tin nhắn.
-- Gửi và nhận tin nhắn dưới định dạng JSON.
+- Opens a WebSocket connection (`ws://` or `wss://`) to the server.
+- Listens for incoming events to display messages.
+- Sends and receives messages formatted as JSON payloads.
 
 ### 2.2. Server (Golang)
 
-Sử dụng thư viện `github.com/gorilla/websocket` để xử lý kết nối.
-Các thực thể chính trong code sẽ bao gồm:
+Uses the `github.com/gorilla/websocket` library to handle connection lifecycle.
+Key code entities include:
 
-- **Client Struct:** Đại diện cho một kết nối WebSocket của một user.
-  - Chứa thông tin: `UserID`, con trỏ tới `Hub`, `Conn` (WebSocket connection), và một buffered channel `Send` để đẩy tin nhắn xuống client này.
-  - Có 2 goroutines chạy ngầm cho mỗi client: `ReadPump` (chờ đọc tin nhắn từ user gửi lên) và `WritePump` (đợi có tin nhắn trong channel `Send` để ghi xuống kết nối WebSocket).
-- **Hub Struct:** Trung tâm điều phối, quản lý tất cả các `Client` đang active.
-  - `Clients`: Một map lưu trữ các client đang kết nối. Để hỗ trợ chat 1-1, key của map nên là `UserID`.
-  - `Register`: Channel để đăng ký client mới khi họ kết nối.
-  - `Unregister`: Channel để hủy đăng ký client khi họ ngắt kết nối hoặc mất mạng.
-  - `PrivateMessage`: Channel để nhận tin nhắn gửi 1-1 và định tuyến đến đúng `UserID`.
+- **Client Struct:** Represents a single user's WebSocket connection.
+  - Contains fields: `UserID`, pointer to `Hub`, `Conn` (WebSocket connection), and a buffered `Send` channel to push messages to this client.
+  - Runs 2 background goroutines per client: `ReadPump` (listens for incoming messages sent by the user) and `WritePump` (waits for messages in the `Send` channel to write out over the WebSocket connection).
+- **Hub Struct:** Central coordinator managing all active `Client` instances.
+  - `Clients`: A map storing connected clients. To support 1-1 chat, the map key is typically `UserID`.
+  - `Register`: Channel for registering new clients when they connect.
+  - `Unregister`: Channel for unregistering clients upon disconnection or network drop.
+  - `PrivateMessage`: Channel for receiving 1-1 messages and routing them to the destination `UserID`.
 
-## 3. Luồng Hoạt động (Data Flow)
+## 3. Data Flow
 
-### 3.1. Kết nối & Xác thực (Connection & Authentication)
+### 3.1. Connection & Authentication
 
-1. User gọi API HTTP login thông thường để lấy JWT token.
-2. User mở kết nối WebSocket: `ws://domain/ws?token=<jwt_token>`.
-3. Server verify token, trích xuất ra `UserID`.
-4. Nếu hợp lệ, Server upgrade HTTP connection lên WebSocket connection.
-5. Server tạo một object `Client`, gán `UserID`, và đẩy vào channel `Hub.Register`. Hub sẽ lưu client này vào map.
+1. User calls the standard HTTP login API to retrieve a JWT token.
+2. User establishes a WebSocket connection: `ws://domain/ws?token=<jwt_token>`.
+3. Server verifies the token and extracts the `UserID`.
+4. If valid, the Server upgrades the HTTP connection to a WebSocket connection.
+5. Server creates a `Client` object, assigns `UserID`, and pushes it to `Hub.Register`. The Hub saves this client in its active map.
 
-### 3.2. Gửi và Nhận tin nhắn (Messaging Flow)
+### 3.2. Messaging Flow
 
 ```mermaid
 sequenceDiagram
@@ -66,51 +66,51 @@ sequenceDiagram
     participant Hub
     participant User B
 
-    User A->>Hub: Gửi JSON (To: UserB, Message: "Hello")
-    Note over Hub: Hub tìm Client của User B trong Map
+    User A->>Hub: Send JSON (To: UserB, Message: "Hello")
+    Note over Hub: Hub looks up User B's Client in Map
     alt User B Online
-        Hub->>User B: Đẩy tin nhắn vào channel 'Send' của User B
-        User B->>User B: Goroutine 'WritePump' ghi ra WebSocket
+        Hub->>User B: Push message into User B's 'Send' channel
+        User B->>User B: 'WritePump' goroutine writes to WebSocket
     else User B Offline
-        Note over Hub: Lưu tin nhắn vào Database (Offline Messages)
+        Note over Hub: Save message to Database (Offline Messages)
     end
 ```
 
-## 4. Cấu trúc Thư mục Đề xuất (Folder Structure)
+## 4. Proposed Folder Structure
 
-Phù hợp với project Golang hiện tại của bạn:
+Adapted to your current Golang project structure:
 
 ```text
 go-app/
 ├── cmd/
 │   └── api/
-│       └── main.go           # Khởi tạo Server, Hub và các Router
+│       └── main.go           # Initialize Server, Hub, and Routers
 ├── internal/
-│   ├── chat/                 # Domain logic cho WebSocket Chat
-│   │   ├── client.go         # Định nghĩa Client, ReadPump, WritePump
-│   │   ├── hub.go            # Định nghĩa Hub, Run(), Đăng ký/Hủy Client
-│   │   └── message.go        # Định nghĩa các struct Payload JSON cho tin nhắn
+│   ├── chat/                 # Domain logic for WebSocket Chat
+│   │   ├── client.go         # Client definition, ReadPump, WritePump
+│   │   ├── hub.go            # Hub definition, Run(), Register/Unregister Client
+│   │   └── message.go        # JSON Payload structs for messages
 │   ├── handler/
-│   │   └── websocket.go      # HTTP handler (ví dụ: /ws) để Upgrade Connection
+│   │   └── websocket.go      # HTTP handler (e.g., /ws) for Connection Upgrade
 │   ├── middleware/
-│   │   └── auth.go           # Middleware xác thực JWT (cho HTTP và WS)
+│   │   └── auth.go           # JWT authentication middleware (HTTP & WS)
 │   └── model/
-│       └── user.model.go     # Model người dùng (hiện tại của bạn)
+│       └── user.model.go     # User model (your current schema)
 ├── pkg/
 │   └── util/
 ├── go.mod
 └── go.sum
 ```
 
-## 5. Quy trình Nghiệp vụ Chi tiết (Detailed Business Workflows)
+## 5. Detailed Business Workflows
 
-Phần này mô tả chi tiết các quy trình nghiệp vụ cốt lõi của hệ thống Chat, đảm bảo tính realtime, nhất quán dữ liệu và trải nghiệm người dùng tối ưu.
+This section describes the core business workflows of the Chat system, ensuring real-time capabilities, data consistency, and optimal user experience.
 
-### 5.1. Luồng Gửi Tin nhắn: Direct Chat (1-1) & Group Chat (1-N)
+### 5.1. Message Delivery Flow: Direct Chat (1-1) & Group Chat (1-N)
 
-Để đảm bảo tin nhắn không bị thất lạc và được lưu trữ an toàn trước khi phân phối, hệ thống áp dụng cơ chế **Lưu trước - Đẩy sau (Store and Forward)** kết hợp với **Message Queue / Redis Pub-Sub** để mở rộng quy mô.
+To ensure messages are never lost and are securely stored before distribution, the system applies a **Store and Forward** approach combined with **Message Queue / Redis Pub-Sub** for scalability.
 
-#### A. Luồng Nhắn tin Trực tiếp (Direct Chat 1-1)
+#### A. Direct Chat Flow (1-1)
 
 ```mermaid
 sequenceDiagram
@@ -122,84 +122,84 @@ sequenceDiagram
     participant WS_B as WS Server (B Connected)
     actor UserB as User B (Receiver)
 
-    UserA->>WS_A: Gửi WS Payload {action: "send_message", to: "UserB", content: "Hi"}
+    UserA->>WS_A: Send WS Payload {action: "send_message", to: "UserB", content: "Hi"}
     activate WS_A
-    WS_A->>DB: 1. Xác thực & Lưu tin nhắn (Status: Sent)
-    DB-->>WS_A: Trả về Message ID & Timestamp
-    WS_A-->>UserA: 2. ACK qua WS (Xác nhận gửi thành công, cập nhật UI tick xám)
+    WS_A->>DB: 1. Authenticate & Save Message (Status: Sent)
+    DB-->>WS_A: Return Message ID & Timestamp
+    WS_A-->>UserA: 2. ACK over WS (Confirm send success, update UI single checkmark)
 
-    WS_A->>PubSub: 3. Publish sự kiện "new_private_message" (to: UserB)
+    WS_A->>PubSub: 3. Publish "new_private_message" event (to: UserB)
     deactivate WS_A
 
     activate PubSub
-    PubSub->>WS_B: 4. Broadcast sự kiện tới toàn cụm Servers
+    PubSub->>WS_B: 4. Broadcast event across server cluster
     deactivate PubSub
 
     activate WS_B
-    Note over WS_B: WS Server B kiểm tra xem User B<br/>có đang kết nối với nó không
+    Note over WS_B: WS Server B checks if User B<br/>is connected to it
     alt User B Online (Active Connection)
-        WS_B->>UserB: 5. Đẩy tin nhắn qua WS (event: "new_message")
-        UserB-->>WS_B: 6. Gửi ACK (Xác nhận đã nhận - Delivered)
-        WS_B->>DB: Cập nhật trạng thái tin nhắn (Status: Delivered)
-        WS_B->>PubSub: Publish sự kiện "message_delivered" tới User A
-        PubSub->>WS_A: Đẩy sự kiện "message_delivered"
-        WS_A->>UserA: Đẩy qua WS (Cập nhật UI thành 2 tick xám)
+        WS_B->>UserB: 5. Push message via WS (event: "new_message")
+        UserB-->>WS_B: 6. Send ACK (Delivered confirmation)
+        WS_B->>DB: Update message status (Status: Delivered)
+        WS_B->>PubSub: Publish "message_delivered" event to User A
+        PubSub->>WS_A: Deliver "message_delivered" event
+        WS_A->>UserA: Push via WS (Update UI to double checkmarks)
     else User B Offline
-        Note over WS_B, UserB: B không online, tin nhắn nằm trong DB chờ Sync khi B online trở lại
+        Note over WS_B, UserB: B is offline; message remains in DB awaiting sync upon reconnect
     end
     deactivate WS_B
 ```
 
 > [!TIP]
-> **Tối ưu hóa:** Thay vì gửi tin nhắn trực tiếp qua WebSocket rồi chờ lưu DB, việc gửi qua REST API HTTP POST `/api/v1/messages` để lưu vào DB trước cũng là một giải pháp rất phổ biến và an toàn, giúp dễ dàng xử lý file đính kèm lớn (image, video) thông qua multipart form-data. WebSocket khi đó chỉ tập trung vào việc truyền phát sự kiện realtime.
+> **Optimization:** Instead of sending message content directly over WebSocket and waiting for DB persistence, submitting via REST API HTTP POST `/api/v1/messages` to save to DB first is a widely adopted and safe approach. It simplifies handling large file attachments (images, video) via multipart form-data. WebSocket can then focus solely on real-time event broadcasting.
 
-#### B. Luồng Nhắn tin Nhóm (Group Chat 1-N)
+#### B. Group Chat Flow (1-N)
 
-Trong Group Chat, danh sách thành viên của group có thể rất lớn. Để tránh việc truy vấn cơ sở dữ liệu liên tục gây nghẽn cổ chai:
+In Group Chat, member lists can be very large. To prevent continuous database querying from causing bottlenecks:
 
-1. Danh sách `Group Members` được cache trong **Redis Set** (key: `group:members:<group_id>`).
-2. Trạng thái Online của các user được quản lý tập trung trong Redis (key: `user:online_status`).
+1. The `Group Members` list is cached in a **Redis Set** (key: `group:members:<group_id>`).
+2. Online status of users is centrally managed in Redis (key: `user:online_status`).
 
 ```mermaid
 flowchart TD
-    A[User A gửi tin nhắn tới Group G] --> B(WS Server tiếp nhận & xác thực)
-    B --> C[Lưu tin nhắn vào DB với group_id]
-    C --> D[Lấy danh sách thành viên Group G từ Redis Cache]
-    D --> E[Lọc danh sách các thành viên đang Online]
-    E --> F[Publish sự kiện group_message tới Redis Pub/Sub]
-    F --> G[Các WS Servers nhận sự kiện từ Redis Pub/Sub]
-    G --> H{Thành viên online kết nối ở Server nào?}
-    H -->|Server X| IX[Server X đẩy qua WebSocket của member tương ứng]
-    H -->|Server Y| IY[Server Y đẩy qua WebSocket của member tương ứng]
+    A[User A sends message to Group G] --> B(WS Server receives & authenticates)
+    B --> C[Save message to DB with group_id]
+    C --> D[Fetch Group G member list from Redis Cache]
+    D --> E[Filter list for currently Online members]
+    E --> F[Publish group_message event to Redis Pub/Sub]
+    F --> G[WS Servers receive event from Redis Pub/Sub]
+    G --> H{Which Server holds each online member's connection?}
+    H -->|Server X| IX[Server X pushes via WebSocket to corresponding member]
+    H -->|Server Y| IY[Server Y pushes via WebSocket to corresponding member]
 ```
 
 ---
 
-### 5.2. Luồng Thu hồi (Delete) & Thả cảm xúc (React) Tin nhắn
+### 5.2. Message Recall (Delete) & Reaction Workflows
 
-Các hành động thu hồi tin nhắn hoặc thả cảm xúc thực chất là **Sự kiện Cập nhật Trạng thái Tin nhắn (Message State Update Events)**.
+Message recall or reactions are essentially **Message State Update Events**.
 
-#### A. Thu hồi tin nhắn (Delete/Recall Message)
+#### A. Message Recall (Delete/Recall)
 
-Hệ thống không thực hiện xóa vật lý (Hard Delete) bản ghi tin nhắn ngay lập tức trong Database để tránh phá vỡ tính nhất quán của lịch sử trò chuyện và phục vụ tính năng báo cáo/audit nếu cần. Hệ thống áp dụng **Soft Delete**:
+The system does not perform an immediate physical hard delete of the message record in the Database, preserving chat history integrity and allowing audit/reporting feature support if needed. The system applies a **Soft Delete**:
 
-1. Cập nhật trường `is_deleted = true` trong collection `messages` trong database.
-2. Thay đổi thành `"Tin nhắn đã bị thu hồi"`.
-3. Server broadcast sự kiện thu hồi qua WebSocket tới toàn bộ thành viên trong cuộc hội thoại kèm theo `message_id`.
-4. Client nhận sự kiện, tìm tin nhắn tương ứng theo `message_id` trên bộ nhớ cục bộ (Local Storage/SQLite) và cập nhật giao diện hiển thị thành _"Tin nhắn đã bị thu hồi"_.
+1. Update `is_deleted = true` in the `messages` collection/table in the database.
+2. Update content placeholder to `"Message has been recalled"`.
+3. Server broadcasts the recall event via WebSocket to all members in the conversation along with `message_id`.
+4. Client receives event, finds matching message by `message_id` in local storage (Local Storage/SQLite), and updates UI display to _"Message has been recalled"_.
 
-#### B. Thả cảm xúc tin nhắn (React Message)
+#### B. Message Reaction (React)
 
-Để quản lý cảm xúc, chúng ta thiết kế một bảng riêng `message_reactions` liên kết 1-N với bảng `messages`.
+To manage reactions, a separate table/collection `message_reactions` is designed with a 1-N relation to `messages`.
 
-**Database Schema đề xuất cho Reactions:**
+**Proposed Database Schema for Reactions:**
 
 - `message_id` (UUID, Foreign Key)
-- `type_of_reaction` (String, ví dụ: "like", "heart", "laugh", "sad")
+- `type_of_reaction` (String, e.g., "like", "heart", "laugh", "sad")
 - `created_by` (UUID, Foreign Key)
 - `created_at` (Timestamp)
 
-**Quy trình xử lý:**
+**Reaction Processing Workflow:**
 
 ```mermaid
 sequenceDiagram
@@ -209,105 +209,105 @@ sequenceDiagram
     participant WS as WS Hub / PubSub
     actor UserB as User B (Receiver)
 
-    UserA->>Server: Gửi request React {message_id: "msg_123", type: "heart"}
+    UserA->>Server: Send React request {message_id: "msg_123", type: "heart"}
     activate Server
-    Server->>DB: Upsert reaction (Nếu tồn tại thì update/delete nếu click lần nữa để gỡ)
-    DB-->>Server: Xác nhận thành công
-    Server-->>UserA: Trả về trạng thái phản hồi mới thành công
+    Server->>DB: Upsert reaction (Update/delete if toggled again to remove)
+    DB-->>Server: Confirm success
+    Server-->>UserA: Return updated reaction state successfully
 
-    Server->>WS: Gửi sự kiện "message_reaction_updated"
+    Server->>WS: Send "message_reaction_updated" event
     deactivate Server
     activate WS
-    WS->>UserB: Đẩy sự kiện qua WebSocket tới các thiết bị online của User B
+    WS->>UserB: Push event via WebSocket to User B's active devices
     deactivate WS
-    Note over UserB: Giao diện User B tự động tăng/giảm<br/>hoặc thay đổi emoji tại tin nhắn 'msg_123'
+    Note over UserB: User B's UI automatically increments/decrements<br/>or updates emoji for message 'msg_123'
 ```
 
 ---
 
-### 5.3. Cơ chế Đồng bộ Tin nhắn trên Nhiều Thiết bị (Multi-Device Synchronization)
+### 5.3. Multi-Device Synchronization
 
-Khi một người dùng đăng nhập đồng thời trên nhiều thiết bị (Web, Desktop, Mobile), việc đảm bảo tin nhắn hiển thị đồng nhất và không bị lệch pha là vô cùng quan trọng.
+When a user logs in simultaneously across multiple devices (Web, Desktop, Mobile), ensuring consistent message display without state mismatch is critical.
 
-#### A. Thiết kế Kết nối (1 User -> N Connections)
+#### A. Connection Design (1 User -> N Connections)
 
-Để hỗ trợ multi-device, kiến trúc **Hub** ở máy chủ Golang phải thay đổi cấu trúc quản lý kết nối:
+To support multi-device environments, the **Hub** architecture in Golang adjusts its connection mapping:
 
-- Thay vì sử dụng map: `clients map[string]*Client` (với key là `user_id`).
-- Ta chuyển sang map: `clients map[string]map[string]*Client` (key 1 là `user_id`, key 2 là `device_id` hoặc `connection_id`).
+- Instead of `clients map[string]*Client` (where key is `user_id`),
+- We switch to `clients map[string]map[string]*Client` (key 1 is `user_id`, key 2 is `device_id` or `connection_id`).
 
-Khi có tin nhắn mới gửi đến `User B`, server sẽ duyệt qua danh sách các kết nối active của `User B` trên mọi thiết bị và đẩy tin nhắn xuống từng thiết bị đó. Đồng thời, tin nhắn cũng được đẩy ngược lại các thiết bị khác của chính người gửi `User A` để đồng bộ hóa đầu gửi.
+When a new message arrives for `User B`, the server iterates through all active connections for `User B` across all devices and pushes the message to each. Simultaneously, the message is pushed back to the sender `User A`'s other connected devices to maintain sender-side synchronization.
 
-#### B. Cơ chế Đồng bộ hóa khi Offline-to-Online (Sync Token / Sequence Number)
+#### B. Offline-to-Online Synchronization (Sync Token / Sequence Number)
 
-Khi một thiết bị bị ngắt kết nối (mất mạng, đóng app) rồi online trở lại, nó đã bỏ lỡ các sự kiện realtime qua WebSocket. Để đồng bộ lại lịch sử tin nhắn một cách chính xác mà không cần tải lại toàn bộ hộp thư:
+When a device gets disconnected (network outage, app closed) and returns online, it misses real-time events sent over WebSocket. To accurately sync message history without re-downloading the entire inbox:
 
-##### Giải pháp: Sử dụng **Sequence Number (Số tuần tự tăng dần)** và **Version (kiểm tra version ở thiết bị nếu như thấp hơn thì sẽ gọi request để lấy)**.
+##### Solution: Use **Sequence Numbers (Monotonically Increasing)** and **Version Checking**.
 
-Mỗi khi có bất kỳ sự kiện nào xảy ra trong một cuộc trò chuyện (Tin nhắn mới, Thu hồi, Thả cảm xúc), Server sẽ lưu sự kiện đó vào một bảng nhật ký thay đổi (`chat_events`) và sinh ra một **Sequence Number (SeqNo)** tăng dần liên tục cho cuộc trò chuyện hoặc người dùng đó.
+Whenever any event occurs in a conversation (New Message, Recall, Reaction), the Server appends that event to a change log table (`chat_events`) and generates a monotonically increasing **Sequence Number (SeqNo)** for that conversation or user.
 
 ```mermaid
 sequenceDiagram
-    actor Client as Client (Vừa Online lại)
+    actor Client as Client (Just Reconnected)
     participant Server as Chat Server
     participant Cache as Redis Cache
     participant DB as Database (Events/Messages)
 
-    Note over Client: Thiết bị khởi động lại,<br/>đọc Last_Seq_No cục bộ (Ví dụ: 105)
-    Client->>Server: Gửi REST API GET /api/v1/sync?last_seq=105&limit=100
+    Note over Client: Device restarts/reconnects,<br/>reads local Last_Seq_No (e.g., 105)
+    Client->>Server: Send REST API GET /api/v1/sync?last_seq=105&limit=100
     activate Server
 
-    Server->>Cache: Kiểm tra tin nhắn mới trong Redis Cache
-    alt Cache Hit (Có sẵn các sự kiện từ 106 - 120)
-        Cache-->>Server: Trả về danh sách sự kiện mới
-    else Cache Miss / Quá nhiều tin offline
-        Server->>DB: Truy vấn bảng `chat_events` WHERE seq_no > 105 ORDER BY seq_no ASC
-        DB-->>Server: Trả về danh sách sự kiện
+    Server->>Cache: Check for new messages in Redis Cache
+    alt Cache Hit (Events 106 - 120 available)
+        Cache-->>Server: Return new event list
+    else Cache Miss / Too many offline messages
+        Server->>DB: Query `chat_events` WHERE seq_no > 105 ORDER BY seq_no ASC
+        DB-->>Server: Return event list
     end
 
-    Server-->>Client: Trả về JSON chứa danh sách sự kiện [106, 107, ..., 120]
+    Server-->>Client: Return JSON containing event list [106, 107, ..., 120]
     deactivate Server
 
     activate Client
-    Note over Client: Client cập nhật SQLite cục bộ,<br/>render tin nhắn lên UI<br/>và cập nhật Last_Seq_No lên 120.
-    Client->>Server: Kết nối WebSocket (ws://...&last_seq=120) để nhận realtime tiếp tục
+    Note over Client: Client updates local SQLite database,<br/>renders messages on UI,<br/>and updates local Last_Seq_No to 120.
+    Client->>Server: Connect to WebSocket (ws://...&last_seq=120) to resume real-time updates
     deactivate Client
 ```
 
 ---
 
-## 6. Thiết kế Payload (JSON Structure)
+## 6. Payload Design (JSON Structure)
 
-Khi Client (Người gửi) gửi tin nhắn lên Server:
+When Client (Sender) sends a message to Server:
 
 ```json
 {
   "action": "send_message",
-  "to_user_id": "uuid-cua-nguoi-nhan",
-  "content": "Chào bạn, đây là tin nhắn realtime!"
+  "to_user_id": "receiver-user-uuid",
+  "content": "Hello, this is a real-time message!"
 }
 ```
 
-Khi Server định tuyến và gửi tin nhắn xuống Client (Người nhận):
+When Server routes and broadcasts a message to Client (Receiver):
 
 ```json
 {
   "event": "new_message",
   "data": {
-    "from_user_id": "uuid-cua-nguoi-gui",
-    "content": "Chào bạn, đây là tin nhắn realtime!",
+    "from_user_id": "sender-user-uuid",
+    "content": "Hello, this is a real-time message!",
     "timestamp": 1698765432
   }
 }
 ```
 
-## 7. Mở rộng trong tương lai (Scalability - Khi có nhiều người dùng)
+## 7. Future Scalability (Multi-Instance Clustering)
 
-Kiến trúc trên hoạt động rất tốt trên **1 Server duy nhất**. Tuy nhiên, nếu bạn chạy ứng dụng trên nhiều server (Multi-instances / Kubernetes):
+The architecture above performs exceptionally well on a **single Server instance**. However, when running across multiple instances (Multi-instances / Kubernetes):
 
-- Cần sử dụng **Redis Pub/Sub** hoặc **RabbitMQ**.
-- **Lý do:** User A kết nối tới Server 1, User B kết nối tới Server 2. Hub ở Server 1 không biết User B.
-- **Giải pháp:**
-  - Khi User A gửi tin nhắn cho User B, Server 1 sẽ Publish tin nhắn vào Redis channel `chat_messages`.
-  - Tất cả các Servers đều Subscribe channel này.
-  - Khi Server 2 nhận được thông điệp từ Redis, nó kiểm tra xem User B có đang kết nối với nó không, nếu có thì sẽ gửi qua WebSocket cho User B.
+- Use **Redis Pub/Sub** or **RabbitMQ**.
+- **Reason:** User A connects to Server 1, User B connects to Server 2. Server 1's Hub is unaware of User B.
+- **Solution:**
+  - When User A sends a message to User B, Server 1 publishes the message to Redis channel `chat_messages`.
+  - All Server instances subscribe to this channel.
+  - When Server 2 receives the payload from Redis, it checks if User B has an active connection locally, and if so, delivers it via WebSocket.
