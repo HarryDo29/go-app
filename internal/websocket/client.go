@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"encoding/json"
 	"log"
 
 	"github.com/gorilla/websocket"
@@ -22,15 +23,25 @@ func (c *Client) ReadPump() {
 	}()
 
 	for {
-		var payload ClientMessagePayload
+		var req WsRequest
 
-		err := c.Conn.ReadJSON(&payload) // đọc message từ client
+		err := c.Conn.ReadJSON(&req) // đọc message từ client
 		if err != nil {
 			log.Println("websocket read error:", err)
 			break
 		}
-
-		switch payload.Event {
+		// call hub to handle event
+		switch req.Event {
+		case "TYPING_START":
+			var p TypingPayload
+			if err := json.Unmarshal(req.Payload, &p); err == nil {
+				// c.Hub.HandleTyping(p.ChannelId, p.UserId)
+			}
+		case "TYPING_STOP":
+			var p TypingPayload
+			if err := json.Unmarshal(req.Payload, &p); err == nil {
+				// c.Hub.StopTyping(p.ChannelId, p.UserId)
+			}
 		case "UNREGISTER":
 			c.Hub.Unregister(c)
 		}

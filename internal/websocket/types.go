@@ -1,5 +1,7 @@
 package websocket
 
+import "encoding/json"
+
 const (
 	// --- Channel ---
 	EventNewChannel         = "NEW_CHANNEL"
@@ -12,10 +14,15 @@ const (
 	EventRecallMessage  = "RECALLED_MESSAGE"
 	// --- Connection(Friend) ---
 	EventNewConnection = "NEW_CONNECTION"
+	// --- UserTyping---
+	EventUserTyping     = "USER_TYPING"
+	EventUserStopTyping = "USER_STOP_TYPING"
 )
 
 type ClientMessagePayload struct {
-	Event string `json:"event"` // "UNREGISTER"...
+	Event     string `json:"event"` // "UNREGISTER"...
+	ChannelId string `json:"channelId"`
+	UserId    string `json:"userId"`
 }
 
 // WsResponse là struct chung để bắn dữ liệu realtime từ Server --> Client
@@ -25,9 +32,14 @@ type WsResponse struct {
 	Payload interface{} `json:"payload"` // nội dung: bất kỳ struct nào
 }
 
-// Struct riêng cho Thông báo
-type NotificationData struct {
-	Title string `json:"title"`
-	Body  string `json:"body"`
-	Link  string `json:"link"`
+// WsRequest là struct để nhận dữ liệu realtime từ Client --> Server
+// FE gửi event và payload đến Server thông qua struct này
+type WsRequest struct {
+	Event   string          `json:"event"`
+	Payload json.RawMessage `json:"payload"` // Keeps payload as raw JSON bytes
+}
+
+type TypingPayload struct {
+	ChannelId string `json:"channelId"`
+	UserId    string `json:"userId"`
 }
