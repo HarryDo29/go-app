@@ -3,8 +3,6 @@ package initialize
 import (
 	"fmt"
 	"go-app/global"
-	"go-app/internal/websocket"
-	"go-app/internal/wire"
 	"strconv"
 	"time"
 
@@ -27,12 +25,8 @@ func Run() {
 	global.Cache = cache.New(5*time.Minute, 10*time.Minute)
 	// miniIO
 	InitMinio()
-	// init websocket Hub (singleton - dùng chung toàn app)
-	global.WsHub = websocket.NewHub()
-	go global.WsHub.Run()
-	// init message service for binding func into hub
-	messageService, _ := wire.InitMessageService()
-	global.WsHub.GetChannelMembersFunc = messageService.GetMemberIds
+	// websocket
+	InitWebSocket()
 	// router
 	r := InitRouter()
 	r.Run(":" + strconv.Itoa(global.Config.Server.Port))
