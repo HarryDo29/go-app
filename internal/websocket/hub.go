@@ -1,6 +1,9 @@
 package websocket
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 type typingState struct {
 	cancel chan struct{} // Channel to signal "cancel this goroutine"
@@ -9,6 +12,7 @@ type typingState struct {
 type GetChannelMembersFunc func(channelId string) []string
 
 type Hub struct {
+	mu sync.RWMutex // lock protect clients
 	// map[UserId] map[ConnectionId] *Client
 	// support 1 user can use multi-devices in a time
 	clients     map[string]map[string]*Client
@@ -195,5 +199,103 @@ func (h *Hub) handleUserStopTyping(channelId string, userId string) {
 				Payload: TypingPayload{ChannelId: channelId, UserId: userId},
 			})
 		}
+	}
+}
+
+// ---------------------- Admin func ------------------------------------------
+type AdminOnlineStats struct {
+	TotalOnlineUsers int      `json:"totalOnlineUsers"`
+	TotalConnections int      `json:"totalConnections"`
+	OnlineUserIds    []string `json:"onlineUserIds,omitempty"`
+}
+
+// DisconnectUser forces disconnect for all connections of a specific user (e.g. Banned / Logout)
+func (h *Hub) DisconnectUser(userId string, reason string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	connections, ok := h.clients[userId]
+	if !ok || len(connections) == 0 {
+		return false
+	}
+
+	res := WsResponse{
+		Event: EventForceDisconnect,
+		Payload: map[string]string{
+			"reason": reason,
+		},
+	}
+
+	for _, client := range connections {
+		// Send force disconnect notice to client before closing
+		select {
+		case client.Send <- res:
+		default:
+		}
+		close(client.Send)
+		client.Conn.Close()
+	}
+
+	delete(h.clients, userId)
+	return true
+}
+
+// BroadcastSystemAnnouncement sends a real-time message to ALL active connected users
+func (h *Hub) BroadcastSystemAnnouncement(title string, message string) int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	count := 0
+	res := WsResponse{
+		Event: EventSystemAnnouncement,
+		Payload: map[string]string{
+			"title":   title,
+			"message": message,
+		},
+	}
+
+	for _, connections := range h.clients {
+		for _, client := range connections {
+			select {
+			case client.Send <- res:
+				count++
+			default:
+			}
+		}
+	}
+	return count
+}
+
+// SendAdminAlert sends a targeted warning or notification popup to a single user
+func (h *Hub) SendAdminAlert(userId string, title string, message string) bool {
+	return h.SendToUser(userId, WsResponse{
+		Event: EventAdminAlert,
+		Payload: map[string]string{
+			"title":   title,
+			"message": message,
+		},
+	})
+}
+
+// GetOnlineStats retrieves active user counts and connection metrics for Admin Dashboard
+func (h *Hub) GetOnlineStats(includeUserIDs bool) AdminOnlineStats {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	totalUsers := len(h.clients)
+	totalConns := 0
+	userIds := make([]string, 0, totalUsers)
+
+	for uID, conns := range h.clients {
+		totalConns += len(conns)
+		if includeUserIDs {
+			userIds = append(userIds, uID)
+		}
+	}
+
+	return AdminOnlineStats{
+		TotalOnlineUsers: totalUsers,
+		TotalConnections: totalConns,
+		OnlineUserIds:    userIds,
 	}
 }

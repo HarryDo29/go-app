@@ -16,6 +16,7 @@ type IRoleRepo interface {
 	CreateRole(createDto dto.CreateRoleDto) *schema.DbRole
 	GetAllRole() *map[string]dto.RoleDto
 	GetRoleById(id primitive.ObjectID) *schema.DbRole
+	GetRole(roleName string) *schema.DbRole
 }
 
 type roleRepo struct{}
@@ -99,6 +100,32 @@ func (r *roleRepo) GetRoleById(id primitive.ObjectID) *schema.DbRole {
 
 	collection := global.Mgo.Database.Collection(schema.CollectionNameRole)
 	err := collection.FindOne(ctx, bson.M{"_id": id}).Decode(&role)
+	if err != nil {
+		return nil
+	}
+	return &role
+}
+
+// GetRole implements [IRoleRepo].
+func (r *roleRepo) GetRole(roleName string) *schema.DbRole {
+	// Thử tìm trong cache trước
+	if cached, ok := global.Cache.Get("roles"); ok {
+		if rolesMap, ok := cached.(map[string]interface{}); ok {
+			for _, v := range rolesMap {
+				if dbRole, ok := v.(schema.DbRole); ok && dbRole.RoleName == roleName {
+					return &dbRole
+				}
+			}
+		}
+	}
+
+	// Cache miss → query trực tiếp DB
+	var role schema.DbRole
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	collection := global.Mgo.Database.Collection(schema.CollectionNameRole)
+	err := collection.FindOne(ctx, bson.M{"role_name": roleName}).Decode(&role)
 	if err != nil {
 		return nil
 	}

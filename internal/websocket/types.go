@@ -17,6 +17,10 @@ const (
 	// --- UserTyping---
 	EventUserTyping     = "USER_TYPING"
 	EventUserStopTyping = "USER_STOP_TYPING"
+	// --- Admin Event ---
+	EventForceDisconnect    = "FORCE_DISCONNECT"
+	EventSystemAnnouncement = "SYSTEM_ANNOUNCEMENT"
+	EventAdminAlert         = "ADMIN_ALERT"
 )
 
 type ClientMessagePayload struct {
