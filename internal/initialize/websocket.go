@@ -10,8 +10,8 @@ import (
 
 func InitWebSocket() {
 	// init websocket Hub (singleton - dùng chung toàn app)
-	global.WsHub = websocket.NewHub()
-	go global.WsHub.Run()
+	hub := websocket.NewHub()
+	go hub.Run()
 
 	// init message service for binding func into hub
 	messageService, err := wire.InitMessageService()
@@ -19,5 +19,8 @@ func InitWebSocket() {
 		log.Fatalf("failed to initialize message service for websocket: %v", err)
 	}
 
-	global.WsHub.GetChannelMembersFunc = messageService.GetMemberIds
+	hub.GetChannelMembersFunc = messageService.GetMemberIds
+
+	// Assign the concrete hub to the global interface variable
+	global.WsHub = hub
 }

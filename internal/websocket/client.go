@@ -42,6 +42,10 @@ func (c *Client) ReadPump() {
 			if err := json.Unmarshal(req.Payload, &p); err == nil {
 				// c.Hub.StopTyping(p.ChannelId, p.UserId)
 			}
+		case "PING":
+			// send client to ping channel → hub.handlePing refreshes Redis presence key
+			c.Hub.Ping(c)
+
 		case "UNREGISTER":
 			c.Hub.Unregister(c)
 		}

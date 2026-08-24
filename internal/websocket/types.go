@@ -47,3 +47,10 @@ type TypingPayload struct {
 	ChannelId string `json:"channelId"`
 	UserId    string `json:"userId"`
 }
+
+// admin
+type AdminOnlineStats struct {
+	TotalOnlineUsers int      `json:"totalOnlineUsers"`
+	TotalConnections int      `json:"totalConnections"`
+	OnlineUserIds    []string `json:"onlineUserIds,omitempty"`
+}

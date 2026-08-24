@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"go-app/global"
+	"strings"
 
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
@@ -20,6 +21,27 @@ func InitRedis() {
 		DB:       r.DB,
 		PoolSize: r.Pool, // Số lượng kết nối tối đa trong pool
 	})
+
+	// Subscribe to the expiration channel in DB 0
+	pubsub := rdb.Subscribe(ctx, "__keyevent@0__:expired")
+	defer pubsub.Close()
+
+	ch := pubsub.Channel()
+	fmt.Println("Listening for Redis expired events...")
+
+	// Goroutine lắng nghe sự kiện key hết hạn từ Redis
+	go func() {
+		for msg := range ch {
+			expiredKey := msg.Payload
+			fmt.Printf("Expired key: %s\n", expiredKey)
+
+			if strings.HasPrefix(expiredKey, "presence:user") {
+				parts := strings.Split(expiredKey, ":")
+				userId := parts[2]
+				fmt.Printf("Handling offline state for user: %s\n", userId)
+			}
+		}
+	}()
 
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil {

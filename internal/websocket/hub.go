@@ -1,9 +1,16 @@
 package websocket
 
 import (
+	"context"
+	"fmt"
+	"go-app/global"
+	"log"
 	"sync"
 	"time"
 )
+
+var ctx = context.Background()
+var timeDuration = 60 * time.Second
 
 type typingState struct {
 	cancel chan struct{} // Channel to signal "cancel this goroutine"
@@ -22,6 +29,7 @@ type Hub struct {
 	unregister chan *Client        // khi user ngắt kết nối --> đưa vào channel unregister để xử lý
 	typing     chan *TypingPayload // khi user typing --> đưa vào channel typing để xử lý
 	stopTyping chan *TypingPayload // khi user stop typing --> đưa vào channel stopTyping để xử lý
+	ping       chan *Client        // when you ping --> update last seen in redis
 
 	GetChannelMembersFunc GetChannelMembersFunc
 }
@@ -34,6 +42,7 @@ func NewHub() *Hub {
 		unregister:  make(chan *Client),
 		typing:      make(chan *TypingPayload),
 		stopTyping:  make(chan *TypingPayload),
+		ping:        make(chan *Client),
 	}
 }
 
@@ -51,6 +60,9 @@ func (h *Hub) Run() {
 
 		case payload := <-h.stopTyping:
 			h.handleUserStopTyping(payload.ChannelId, payload.UserId)
+
+		case payload := <-h.ping:
+			h.handlePing(payload.UserId)
 		}
 	}
 }
@@ -67,6 +79,16 @@ func (h *Hub) HandleTyping(payload *TypingPayload) {
 	h.typing <- payload
 }
 
+func (h *Hub) Ping(client *Client) {
+	h.ping <- client
+}
+
+//-----------------------------------------------------------------
+
+func getUserPresenceKey(userId string) string {
+	return fmt.Sprintf("presence:user:%s", userId)
+}
+
 func (h *Hub) registerClient(client *Client) {
 	if client == nil || client.UserId == "" {
 		return
@@ -77,6 +99,7 @@ func (h *Hub) registerClient(client *Client) {
 	}
 
 	h.clients[client.UserId][client.ConnectionId] = client
+	global.Rdb.HSet(ctx, getUserPresenceKey(client.UserId), "1", timeDuration)
 } // done
 
 func (h *Hub) unregisterClient(client *Client) {
@@ -92,6 +115,8 @@ func (h *Hub) unregisterClient(client *Client) {
 			delete(h.clients, client.UserId) // nếu không còn kết nối thì off user
 		}
 	}
+
+	global.Rdb.HDel(ctx, getUserPresenceKey(client.UserId), "1")
 	close(client.Send) // đóng channel Send
 } // done
 
@@ -202,13 +227,28 @@ func (h *Hub) handleUserStopTyping(channelId string, userId string) {
 	}
 }
 
-// ---------------------- Admin func ------------------------------------------
-type AdminOnlineStats struct {
-	TotalOnlineUsers int      `json:"totalOnlineUsers"`
-	TotalConnections int      `json:"totalConnections"`
-	OnlineUserIds    []string `json:"onlineUserIds,omitempty"`
+func (h *Hub) handlePing(userId string) {
+	key := getUserPresenceKey(userId)
+	// check key exist in redis ?
+	if value, err := global.Rdb.ExpireXX(ctx, key, timeDuration).Result(); err == nil && value {
+		return
+	}
+
+	//	1. Đặt key là userId, value là false (online)
+	if err := global.Rdb.HSet(ctx, key, "1", timeDuration).Err(); err != nil {
+		log.Println("error set presence user:", err)
+	}
+
+	//	2. Bắn event PONG về cho client gửi ping
+	h.SendToUser(userId, WsResponse{
+		Event: "PONG",
+		Payload: map[string]string{
+			"msg": "pong",
+		},
+	})
 }
 
+// ---------------------- Admin func ------------------------------------------
 // DisconnectUser forces disconnect for all connections of a specific user (e.g. Banned / Logout)
 func (h *Hub) DisconnectUser(userId string, reason string) bool {
 	h.mu.Lock()

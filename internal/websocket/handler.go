@@ -8,6 +8,7 @@ import (
 	gorilla "github.com/gorilla/websocket"
 )
 
+
 type Handler struct {
 	Hub *Hub
 }
