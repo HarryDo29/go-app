@@ -23,8 +23,8 @@ func Run() {
 	InitRedis()
 	// init cache
 	global.Cache = cache.New(5*time.Minute, 10*time.Minute)
-	// miniIO
-	InitMinio()
+	// S3 (MinIO / AWS S3)
+	InitS3()
 	// websocket
 	InitWebSocket()
 	// router

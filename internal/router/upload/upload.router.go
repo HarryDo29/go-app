@@ -15,6 +15,11 @@ func (r *UploadRouter) InitUploadRouter(Router *gin.RouterGroup) {
 	uploadRouter := Router.Group("/upload")
 	uploadRouter.Use(middleware.AuthNMiddleware())
 	{
-		uploadRouter.POST("/presigned", uploadController.GeneratePresignedURL)
+		uploadRouter.POST("/presigned", uploadController.GeneratePresignURL)
+		uploadRouter.POST("/multipart/init", uploadController.InitiateUploadPart)
+		uploadRouter.POST("/multipart/presign-parts", uploadController.GetPresignedPartURLs)
+		uploadRouter.POST("/multipart/complete", uploadController.CompleteUploadPart)
+		uploadRouter.POST("/multipart/abort", uploadController.AbortUpload)
+		uploadRouter.GET("/download", uploadController.GetDownloadURL)
 	}
 }

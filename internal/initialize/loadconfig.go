@@ -46,7 +46,9 @@ func LoadConfig() {
 		"mongo.uri", "mongo.user", "mongo.password", "mongo.host", "mongo.port", "mongo.dbname",
 		// REDIS
 		"redis.host", "redis.port", "redis.password", "redis.db", "redis.pool",
-		// MINIO
+		// S3
+		"s3.provider", "s3.endpoint", "s3.region", "s3.bucketname", "s3.accesskey", "s3.secretkey", "s3.usessl", "s3.usepathstyle",
+		// MINIO (compat)
 		"minio.endpoint", "minio.accesskey", "minio.secretkey", "minio.usessl",
 		// SECURITY
 		"security.jwt.access-secret", "security.jwt.access-expiration",

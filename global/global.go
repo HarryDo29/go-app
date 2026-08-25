@@ -4,7 +4,7 @@ import (
 	"go-app/pkg/logger"
 	"go-app/pkg/setting"
 
-	"github.com/minio/minio-go/v7"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/patrickmn/go-cache"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -31,7 +31,8 @@ var (
 	Mgo *MongoDB      // mongodb connection wrapper
 	// ModelsToMigrate          []interface{}     // model auto migrate
 	MongoCollectionsToCreate []string // mongodb collections to create
-	Minio                    *minio.Client
+	S3Client                 *s3.Client
+	S3PresignClient          *s3.PresignClient
 	Cache                    *cache.Cache
 	WsHub                    IWsHub // singleton Hub dùng chung toàn app
 )

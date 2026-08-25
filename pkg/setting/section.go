@@ -8,7 +8,7 @@ type Config struct {
 	Redis     Redis     `mapstructure:"redis"`
 	Security  Security  `mapstructure:"security"`
 	Logger    Logger    `mapstructure:"logger"`
-	Minio     Minio     `mapstructure:"minio"`
+	S3        S3        `mapstructure:"s3"`
 	RateLimit RateLimit `mapstructure:"ratelimit"`
 	Cors      Cors      `mapstructure:"cors"`
 }
@@ -35,9 +35,9 @@ type MySQL struct {
 	User            string `mapstructure:"username"`
 	Password        string `mapstructure:"password"`
 	Database        string `mapstructure:"database"`
-	MaxIdleConns    int    `mapstructure:"maxIdleConns"`
-	MaxOpenConns    int    `mapstructure:"maxOpenConns"`
-	ConnMaxLifetime int    `mapstructure:"connMaxLifetime"`
+	MaxIdleConns    int64  `mapstructure:"maxIdleConns"`
+	MaxOpenConns    int64  `mapstructure:"maxOpenConns"`
+	ConnMaxLifetime int64  `mapstructure:"connMaxLifetime"`
 }
 
 // Redis config
@@ -76,11 +76,19 @@ type RateLimit struct {
 	Burst    int    `mapstructure:"burst"`
 }
 
-type Minio struct {
-	Endpoint  string `mapstructure:"endpoint"`
-	AccessKey string `mapstructure:"accessKey"`
-	SecretKey string `mapstructure:"secretKey"`
-	UseSSL    bool   `mapstructure:"useSSL"`
+type S3 struct {
+	Provider      string `mapstructure:"provider"`      // "minio" or "aws"
+	Endpoint      string `mapstructure:"endpoint"`      // e.g. "http://localhost:9000" for MinIO; leave empty for AWS S3
+	Region        string `mapstructure:"region"`        // e.g. "us-east-1" or "ap-southeast-1"
+	BucketName    string `mapstructure:"bucketName"`    // e.g. "go-chat-app"
+	AccessKey     string `mapstructure:"accessKey"`     // Access Key
+	SecretKey     string `mapstructure:"secretKey"`     // Secret Key
+	UseSSL        bool   `mapstructure:"useSSL"`        // SSL enabled
+	UsePathStyle  bool   `mapstructure:"usePathStyle"`  // true for MinIO, false for AWS S3
+	MaxSingleSize int64  `mapstructure:"maxSingleSize"` // 5MB in bytes
+	MinPartSize   int64  `mapstructure:"minPartSize"`   // 5MB in bytes (S3 minimum)
+	MaxFileSize   int64  `mapstructure:"maxFileSize"`   // Max total file size in bytes
+
 }
 
 type Cors struct {
